@@ -235,7 +235,7 @@ function extract(file, oreTables, spawnTables, facilityTable, opts = {}) {
 const FILE_KEY = /^mapfile:([0-9a-f]{40})$/;
 
 async function loadFile(buf, cacheDir, tables = {}, name = 'map') {
-    if (buf.length < 64 || buf.length > MAX_DOWNLOAD) throw new Error('That doesn’t look like a Rust .map file');
+    if (!Buffer.isBuffer(buf) || buf.length < 64 || buf.length > MAX_DOWNLOAD) throw new Error('That doesn’t look like a Rust .map file');
     const hash = crypto.createHash('sha1').update(buf).digest('hex');
     const base = path.join(cacheDir, hash);
     const metaFile = base + '.mapfile.json';
