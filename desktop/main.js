@@ -49,6 +49,10 @@ async function startServer() {
         RUSTPLUS_CONFIG: path.join(USER, 'rustplus.config.json'),
         PORT: String(await freePort(30120, 30139))
     });
+    for (const k of ['log', 'error']) {
+        const orig = console[k];
+        console[k] = (...a) => { orig(...a); dlog(a.map(x => x instanceof Error ? x.message : String(x)).join(' ')); };
+    }
     server = require(path.join(ROOT, 'server.js'));
     const port = await server.listening;
     base = `http://localhost:${port}`;
@@ -202,6 +206,7 @@ const GAMMA_LEVELS = [
 const KEY_CHOICES = {
     gammaCycle: ['Control+Alt+G', 'Control+Alt+N', 'Control+Alt+Shift+G'],
     gammaOff: ['Control+Alt+H', 'Control+Alt+B', 'Control+Alt+Shift+H'],
+    color: ['Control+Alt+V', 'Control+Alt+J', 'Control+Alt+Shift+V'],
     hud: ['Control+Alt+O', 'Control+Alt+U', 'Control+Alt+Shift+O'],
     crosshair: ['Control+Alt+X', 'Control+Alt+C', 'Control+Alt+Shift+X'],
     app: ['Control+Alt+M', 'Control+Alt+R', 'Control+Alt+K', 'Control+Alt+Shift+M']
@@ -219,7 +224,7 @@ let gammaQueue = [];
 
 function gammaHelper() {
     if (gammaProc && gammaProc.exitCode === null) return gammaProc;
-    gammaProc = spawn(GAMMA_EXE, ['--serve'], { windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] });
+    gammaProc = spawn(GAMMA_EXE, ['--serve'], { windowsHide: true, detached: true, stdio: ['pipe', 'pipe', 'ignore'] });
     let buf = '';
     gammaProc.stdout.on('data', d => {
         buf += d;
@@ -237,11 +242,29 @@ function gammaHelper() {
     gammaProc.on('error', () => { gammaQueue.splice(0).forEach(done => done(null)); gammaProc = null; });
     return gammaProc;
 }
-const gammaSend = (gamma, lift) => new Promise(resolve => {
+const gammaLine = line => new Promise(resolve => {
     const proc = gammaHelper();
     gammaQueue.push(resolve);
-    proc.stdin.write(`${gamma} ${lift}\n`);
+    proc.stdin.write(`${line}\n`);
 });
+const gammaSend = (gamma, lift) => gammaLine(`${gamma} ${lift}`);
+
+const COLOR_DEFAULT = { on: false, vib: -1, sat: 100, bri: 50, con: 50, gam: 1, temp: 0 };
+const colorSettings = () => ({ ...COLOR_DEFAULT, ...settings().color });
+let colorResult = null;
+async function applyColor() {
+    const c = colorSettings();
+    const base = settings().vibBase ?? -1;
+    const r = await gammaLine(c.on ? `color ${c.vib} ${c.sat} ${c.bri} ${c.con} ${c.gam} ${c.temp} ${base}` : `color -1 100 50 50 1 0 ${base}`);
+    colorResult = r;
+    if (c.on && !r?.ok) dlog(`colour profile failed: ${JSON.stringify(r)}`);
+    buildTray();
+    win?.webContents.send('color-settings', { ...c, result: r });
+    return { ...c, result: r };
+}
+const setColor = patch => { saveSettings({ color: { ...colorSettings(), ...patch } }); return applyColor(); };
+ipcMain.handle('color-get', async () => ({ ...colorSettings(), result: colorResult || await gammaLine('color -1 100 50 50 1 0') }));
+ipcMain.handle('color-set', (e, patch) => setColor(patch || {}));
 
 async function setGamma(level) {
     const lv = GAMMA_LEVELS[level];
@@ -271,6 +294,7 @@ function resetGamma() {
 function registerGammaKeys() {
     claimKey('gammaCycle', () => setGamma((gammaLevel + 1) % GAMMA_LEVELS.length));
     claimKey('gammaOff', () => setGamma(0));
+    claimKey('color', () => setColor({ on: !colorSettings().on }));
 }
 
 const OVERLAY_DEFAULT = { hud: false, hudCorner: 'top-right', display: null, crosshair: { on: false, style: 'cross', size: 8, gap: 4, thickness: 2, color: '#00ff66', opacity: 1, outline: true, dot: false } };
@@ -404,6 +428,7 @@ function buildTray() {
                 { label: 'Works in borderless/windowed mode (not exclusive fullscreen)', enabled: false }
             ]
         },
+        { label: `Colour profile (${keyLabel('color')})`, type: 'checkbox', checked: colorSettings().on, click: i => setColor({ on: i.checked }) },
         {
             label: 'In-game overlay', submenu: [
                 { label: `HUD (${keyLabel('hud')})`, type: 'checkbox', checked: overlaySettings().hud, click: i => setOverlay({ hud: i.checked }) },
@@ -451,6 +476,10 @@ app.whenReady().then(async () => {
     buildTray(); 
     dlog(`started ${app.getVersion()}; hotkeys: ${JSON.stringify(KEYS)}`);
     updateOverlay();
+    gammaLine(`color -1 100 50 50 1 0 ${settings().vibBase ?? -1}`).then(r => {
+        if (r?.driverVibrance >= 0 && (!colorSettings().on || settings().vibBase == null)) saveSettings({ vibBase: r.driverVibrance });
+        if (colorSettings().on) applyColor();
+    });
     createWindow();
 });
 

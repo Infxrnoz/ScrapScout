@@ -308,6 +308,27 @@
                 <p class="hint" id="dbot-status"></p>
             </div>
 
+            <section id="color-settings" hidden>
+                <h2>Colour profile</h2>
+                <p class="hint">Changes the whole screen like the NVIDIA Control Panel does, without touching the game. <b id="key-color">Ctrl + Alt + V</b> turns it on/off in game. Everything goes back to normal when RustScout quits. <span id="col-method"></span></p>
+                <label class="check"><input type="checkbox" id="col-on"> Use this profile</label>
+                <div class="seg" id="col-presets">
+                    <button data-preset="default">Default</button>
+                    <button data-preset="balanced">Balanced</button>
+                    <button data-preset="night">Night</button>
+                    <button data-preset="snow">Snow</button>
+                    <button data-preset="desert">Desert</button>
+                </div>
+                <div class="form">
+                    <label class="field">Vibrance <span id="col-vib-v"></span><input type="range" id="col-vib" min="0" max="100"></label>
+                    <label class="field">Saturation <span id="col-sat-v"></span><input type="range" id="col-sat" min="0" max="200"></label>
+                    <label class="field">Brightness <span id="col-bri-v"></span><input type="range" id="col-bri" min="0" max="100"></label>
+                    <label class="field">Contrast <span id="col-con-v"></span><input type="range" id="col-con" min="0" max="100"></label>
+                    <label class="field">Gamma <span id="col-gam-v"></span><input type="range" id="col-gam" min="0.3" max="2.8" step="0.05"></label>
+                    <label class="field">Temperature <span id="col-temp-v"></span><input type="range" id="col-temp" min="-100" max="100" step="5"></label>
+                </div>
+            </section>
+
             <section id="overlay-settings" hidden>
                 <h2>In-game overlay</h2>
                 <p class="hint">Shows over Rust in <b>Borderless/Windowed</b> mode. Click-through: it never takes your mouse or keyboard. In game: <b id="key-app">Ctrl + Alt + M</b> opens the whole app over the game, <b id="key-hud">Ctrl + Alt + O</b> toggles the HUD, <b id="key-crosshair">Ctrl + Alt + X</b> the crosshair. Some community servers don't allow crosshair overlays, so check the rules.</p>

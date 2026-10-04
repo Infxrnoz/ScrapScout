@@ -31,7 +31,8 @@ const ALERT_KINDS = {
     killedBy: 'You were killed', alarm: 'Smart alarm', cargo: 'Cargo spawned', cargoGone: 'Cargo left', heli: 'Heli spawned',
     heliGone: 'Heli gone', ch47: 'Chinook spawned', crate: 'Locked crate', vendor: 'Travelling vendor', explosion: 'Explosion',
     sulfurSale: 'Sulfur sale', chat: 'Team chat', upkeep: 'TC upkeep low', watchWipe: 'Watched server wiped',
-    trackedOnline: 'Tracked player joined', trackedOffline: 'Tracked player left', decay: 'Decay timer'
+    trackedOnline: 'Tracked player joined', trackedOffline: 'Tracked player left', decay: 'Decay timer',
+    oilrig: 'Oil rig triggered', plane: 'Airdrop inbound'
 };
 const DEFAULT_ALERTS = Object.fromEntries(Object.keys(ALERT_KINDS).map(k => [k, {
     toast: !['teamRespawn', 'chat', 'explosion', 'cargoGone', 'heliGone'].includes(k),
@@ -161,6 +162,7 @@ function onPush(data) {
     let body = {};
     try { body = JSON.parse(get('body') || '{}'); } catch {  }
     const serverId = body.ip && body.port ? `${body.ip}:${body.port}` : null;
+    log(`push received: ${channel || '?'}${body.type ? `/${body.type}` : ''} ${title}`.trim());
 
     if (channel === 'pairing' && body.type === 'server') {
         store.list[serverId] = {
@@ -712,8 +714,8 @@ app.delete('/api/pins/:id', needSession, pinRoute(req => { session.pins.remove(r
 app.get('/api/threats', guard(async (req, res) => {
     const byKiller = {};
     for (const d of threats.data.deaths) {
-        const key = d.killerId || `npc:${d.killerName}`;
-        const k = byKiller[key] ??= { killerId: d.killerId, name: d.killerName, kills: 0, last: 0, first: d.t, servers: new Set() };
+        if (!d.killerId) continue;
+        const k = byKiller[d.killerId] ??= { killerId: d.killerId, name: d.killerName, kills: 0, last: 0, first: d.t, servers: new Set() };
         k.kills++;
         k.last = Math.max(k.last, d.t);
         k.name = d.killerName;

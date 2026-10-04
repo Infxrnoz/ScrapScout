@@ -2,7 +2,13 @@ const { Persisted } = require('./persist');
 const { describe } = require('./geo');
 
 const EVENT_TYPES = { 2: 'explosion', 4: 'ch47', 5: 'cargo', 6: 'crate', 8: 'heli', 9: 'vendor' };
-const EVENT_NAMES = { explosion: 'Explosion', ch47: 'Chinook', cargo: 'Cargo Ship', crate: 'Locked Crate', heli: 'Patrol Helicopter', vendor: 'Travelling Vendor' };
+const EVENT_NAMES = { explosion: 'Explosion', ch47: 'Chinook', cargo: 'Cargo Ship', crate: 'Locked Crate', heli: 'Patrol Helicopter', vendor: 'Travelling Vendor', plane: 'Airdrop plane' };
+const RIGS = { oil_rig_small: 'smallRig', large_oil_rig: 'largeRig' };
+const RIG_CH47_RANGE = 550;
+const OIL_CRATE_UNLOCK_MS = 15 * 60e3;
+const COMPASS = ['East', 'North East', 'North', 'North West', 'West', 'South West', 'South', 'South East'];
+const fromSide = (x, y, size) => COMPASS[Math.round(Math.atan2(y - size / 2, x - size / 2) / (Math.PI / 4) + 8) % 8];
+const loggedTypes = new Set();
 
 class TeamTracker {
     constructor(file) {
@@ -67,8 +73,9 @@ class EventTracker {
         const seen = new Set();
 
         for (const m of markers) {
-            const type = EVENT_TYPES[m.type];
+            const type = EVENT_TYPES[m.type] ?? (m.type > 9 ? 'plane' : null);
             if (!type) continue;
+            if (type === 'plane' && !loggedTypes.has(m.type)) { loggedTypes.add(m.type); console.log(`marker type ${m.type} seen, treating it as the airdrop plane`); }
             const id = String(m.id);
             seen.add(id);
             if (active[id]) {
@@ -77,10 +84,20 @@ class EventTracker {
                 continue;
             }
             active[id] = { id, type, since: now, x: m.x, y: m.y, where: describe(m.x, m.y, mapMeta) };
+            if (type === 'plane' && mapMeta) active[id].from = fromSide(m.x, m.y, mapMeta.mapSize);
             if (!this.primed) continue;
             const last = this.store.data.last[type] ??= {};
             last.spawn = now;
+            if (type === 'plane') { out.push({ kind: 'plane', x: m.x, y: m.y, text: `Airdrop inbound${active[id].from ? ` from the ${active[id].from}` : ''}` }); continue; }
             out.push({ kind: type, x: m.x, y: m.y, text: `${EVENT_NAMES[type]} ${type === 'explosion' ? 'at' : 'spawned at'} ${active[id].where}` });
+            if (type === 'ch47' && mapMeta) {
+                const rig = mapMeta.monuments.find(r => RIGS[r.token] && Math.hypot(r.x - m.x, r.y - m.y) <= RIG_CH47_RANGE);
+                if (rig) {
+                    const where = describe(rig.x, rig.y, mapMeta);
+                    this.store.data.last[RIGS[rig.token]] = { t: now, where };
+                    out.push({ kind: 'oilrig', x: rig.x, y: rig.y, text: `Heavy scientists called to ${where}, crate unlocks in 15m` });
+                }
+            }
         }
 
         for (const [id, e] of Object.entries(active)) {
@@ -101,6 +118,14 @@ class EventTracker {
         }
         this.store.touch();
         return out;
+    }
+
+    rig(key, name) {
+        const r = this.store.data.last[key];
+        if (!r) return `${name}: not triggered since RustScout started watching`;
+        const left = r.t + OIL_CRATE_UNLOCK_MS - Date.now();
+        const ago = Math.round((Date.now() - r.t) / 60000);
+        return left > 0 ? `${r.where}: heavies called ${ago}m ago, crate unlocks in ${Math.ceil(left / 60000)}m` : `${r.where}: last triggered ${ago}m ago, crate unlocked`;
     }
 
     snapshot() {

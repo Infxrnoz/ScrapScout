@@ -28,7 +28,7 @@
                 <div class="grow"><div class="title">${esc(p.name || k.name)}</div>
                 <div class="sub">killed you <b class="flame">${k.kills}×</b> · last ${ago(k.last)}</div><div>${flags}</div></div>
             </a>`;
-        }).join('') || empty('Nobody has killed you yet (since this app started listening). Deaths come from Rust+ push notifications, so the pairing listener has to be running.');
+        }).join('') || empty('No player has killed you yet (since this app started listening). Deaths arrive as Rust+ notifications sent by the game server, so a server whose Rust+ isn’t working sends none. Animal and NPC deaths show under Recent deaths.');
 
         $('#threat-recent').innerHTML = data.recent.slice(0, 25).map(d => `
             <div class="log-row teamDeath"><span class="ic">✕</span><span class="grow">${esc(d.title || `Killed by ${d.killerName}`)}${d.server ? ` <span class="muted">· ${esc(d.server)}</span>` : ''}</span><span class="muted">${ago(d.t)}</span></div>`).join('');

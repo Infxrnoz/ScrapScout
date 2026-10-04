@@ -9,5 +9,8 @@ contextBridge.exposeInMainWorld('desktop', {
     onOverlay: fn => ipcRenderer.on('overlay-settings', (e, s) => fn(s)),
     displays: () => ipcRenderer.invoke('overlay-displays'),
     onAppOverlay: fn => ipcRenderer.on('app-overlay', (e, on) => fn(on)),
-    hotkeys: () => ipcRenderer.invoke('hotkeys')
+    hotkeys: () => ipcRenderer.invoke('hotkeys'),
+    getColor: () => ipcRenderer.invoke('color-get'),
+    setColor: patch => ipcRenderer.invoke('color-set', patch),
+    onColor: fn => ipcRenderer.on('color-settings', (e, c) => fn(c))
 });

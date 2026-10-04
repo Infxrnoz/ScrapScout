@@ -76,6 +76,29 @@ const COMMANDS = {
     chinook: ctx => eventStatus(ctx, 'ch47'),
     vendor: ctx => eventStatus(ctx, 'vendor'),
 
+    crate: ({ events, markers }) => {
+        if (markersGone(markers)) return NO_MARKERS;
+        const crates = events.snapshot().active.filter(e => e.type === 'crate');
+        if (!crates.length) return 'No locked crates on the map';
+        const at = {};
+        for (const c of crates) at[c.where || '?'] = (at[c.where || '?'] || 0) + 1;
+        const newest = Math.max(...crates.map(c => c.since));
+        return `Locked Crates: ${crates.length} on the map: ${Object.entries(at).map(([w, n]) => `${n} at ${w}`).join(', ')}; newest arrived ${dur(Date.now() - newest)} ago`;
+    },
+
+    oil: ({ events }) => `${events.rig('smallRig', 'Oil Rig')} | ${events.rig('largeRig', 'Large Oil Rig')}`,
+    small: ({ events }) => events.rig('smallRig', 'Oil Rig'),
+    large: ({ events }) => events.rig('largeRig', 'Large Oil Rig'),
+
+    airdrop: ({ events, markers }) => {
+        if (markersGone(markers)) return NO_MARKERS;
+        const snap = events.snapshot();
+        const live = snap.active.find(e => e.type === 'plane');
+        if (live) return `Airdrop plane is over the map${live.from ? `, came in from the ${live.from}` : ''} (${dur(Date.now() - live.since)} ago)`;
+        const last = snap.last.plane;
+        return last?.spawn ? `No airdrop plane right now. Last one came ${dur(Date.now() - last.spawn)} ago` : 'No airdrop seen yet';
+    },
+
     craft: (ctx, args) => {
         if (!args.length) return 'Usage: craft <item> [amount]';
         const [q, n] = splitQty(args);

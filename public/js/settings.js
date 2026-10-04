@@ -127,10 +127,44 @@
         $('#xh-outline').onchange = e => send({ crosshair: { outline: e.target.checked } });
         $('#xh-dot').onchange = e => send({ crosshair: { dot: e.target.checked } });
         for (const k of XH) $(`#xh-${k}`).oninput = e => send({ crosshair: { [k]: Number(e.target.value) } });
-        window.desktop.onOverlay(fill); 
+        window.desktop.onOverlay(fill);
+
+        $('#color-settings').hidden = false;
+        const PRESETS = {
+            default: { vib: -1, sat: 100, bri: 50, con: 50, gam: 1, temp: 0 },
+            balanced: { vib: 70, sat: 110, bri: 50, con: 52, gam: 1.1, temp: 0 },
+            night: { vib: 65, sat: 100, bri: 54, con: 50, gam: 1.6, temp: -10 },
+            snow: { vib: 60, sat: 105, bri: 46, con: 56, gam: 0.95, temp: 10 },
+            desert: { vib: 75, sat: 115, bri: 48, con: 55, gam: 1, temp: -15 }
+        };
+        const COL = { vib: v => `${v}%`, sat: v => `${v}%`, bri: v => `${v}%`, con: v => `${v}%`, gam: v => Number(v).toFixed(2), temp: v => v == 0 ? 'Neutral' : v > 0 ? `Warm ${v}` : `Cool ${-v}` };
+        const fillColor = c => {
+            const r = c.result || {};
+            $('#col-on').checked = c.on;
+            for (const k in COL) {
+                const v = k === 'vib' && c.vib < 0 ? (r.driverVibrance >= 0 ? r.driverVibrance : 50) : c[k];
+                $(`#col-${k}`).value = v;
+                $(`#col-${k}-v`).textContent = COL[k](v) + (k === 'vib' && c.vib < 0 ? ' (driver)' : '');
+            }
+            $('#col-method').textContent = !c.on ? '' : r.ok === false ? 'Windows refused the change on this PC.'
+                : r.method === 'filter' ? 'Windows has no gamma control here (monitors disabled in Device Manager?), so gamma is approximated.'
+                : r.vibrance === 'filter' ? 'No NVIDIA driver found, so vibrance is done as extra saturation.' : '';
+            for (const b of $('#col-presets').children) b.classList.toggle('active', Object.entries(PRESETS[b.dataset.preset]).every(([k, v]) => c[k] == v));
+        };
+        let colorPending = 0;
+        const sendColor = async patch => {
+            colorPending++;
+            const c = await window.desktop.setColor(patch);
+            if (--colorPending === 0) fillColor(c);
+        };
+        $('#col-on').onchange = e => sendColor({ on: e.target.checked });
+        for (const b of $('#col-presets').children) b.onclick = () => sendColor({ ...PRESETS[b.dataset.preset], on: true });
+        for (const k in COL) $(`#col-${k}`).oninput = e => sendColor({ [k]: Number(e.target.value), on: true });
+        window.desktop.onColor(c => { if (!colorPending) fillColor(c); });
+        window.desktop.getColor().then(fillColor);
         (async () => {
             const keys = await window.desktop.hotkeys();
-            for (const k of ['app', 'hud', 'crosshair']) $(`#key-${k}`).textContent = keys[k];
+            for (const k of ['app', 'hud', 'crosshair', 'color']) $(`#key-${k}`).textContent = keys[k];
             const displays = await window.desktop.displays();
             $('#ov-display').innerHTML = '<option value="">Main screen</option>' + displays.map(d => `<option value="${d.id}">${esc(d.label)}</option>`).join('');
             fill(await window.desktop.getOverlay());
