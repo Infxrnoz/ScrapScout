@@ -11,9 +11,15 @@ class Devices {
         return this.store.data.list;
     }
 
+    get(entityId) {
+        const id = String(entityId);
+        return /^\d+$/.test(id) && Object.hasOwn(this.list, id) ? this.list[id] : null;
+    }
+
     add(entityId, entityType, name) {
         const id = String(entityId);
-        const existing = this.list[id];
+        if (!/^\d+$/.test(id)) throw new Error('Bad device id');
+        const existing = this.get(id);
         this.list[id] = {
             id,
             type: TYPES[entityType] || existing?.type || 'switch',
@@ -31,7 +37,7 @@ class Devices {
     }
 
     apply(entityId, payload, now = Date.now()) {
-        const d = this.list[String(entityId)];
+        const d = this.get(entityId);
         if (!d) return false;
         const wasOn = d.value;
         d.reachable = true;
@@ -49,7 +55,7 @@ class Devices {
     }
 
     markUnreachable(entityId) {
-        const d = this.list[String(entityId)];
+        const d = this.get(entityId);
         if (d) {
             d.reachable = false;
             this.store.touch();
@@ -57,7 +63,7 @@ class Devices {
     }
 
     rename(entityId, name) {
-        const d = this.list[String(entityId)];
+        const d = this.get(entityId);
         if (!d) return false;
         d.name = String(name).slice(0, 40);
         this.store.flush();
@@ -65,7 +71,7 @@ class Devices {
     }
 
     remove(entityId) {
-        delete this.list[String(entityId)];
+        if (this.get(entityId)) delete this.list[String(entityId)];
         this.store.flush();
     }
 }

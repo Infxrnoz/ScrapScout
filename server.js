@@ -97,7 +97,14 @@ const errText = e => e?.message || (typeof e === 'object' ? JSON.stringify(e) : 
 
 const app = express();
 const httpServer = http.createServer(app);
-const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+const LOCAL = host => /^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(host || '');
+const fromApp = req => {
+    if (!LOCAL(req.headers.host)) return false;
+    const origin = req.headers.origin;
+    if (!origin) return true;
+    try { return LOCAL(new URL(origin).host); } catch { return false; }
+};
+const wss = new WebSocketServer({ server: httpServer, path: '/ws', verifyClient: ({ req }) => fromApp(req) });
 wss.on('error', () => {});
 
 const broadcast = msg => {
@@ -131,7 +138,7 @@ function alert(kind, text, extra = {}) {
     }
 }
 
-const NOT_LINKED = process.env.DESKTOP ? 'not set up — link your Steam account' : 'not set up — run setup.bat (or npm run register) to link Steam';
+const NOT_LINKED = process.env.DESKTOP ? 'not set up â€” link your Steam account' : 'not set up â€” run setup.bat (or npm run register) to link Steam';
 const fcm = { status: NOT_LINKED, client: null };
 
 function loadGcmCredentials() {
@@ -142,7 +149,7 @@ function loadGcmCredentials() {
     if (!creds) throw new Error(`cannot read ${file}`);
     const expiry = creds[creds.hoster]?.expire_date;
     if (expiry && Number(expiry) * 1000 < Date.now()) {
-        throw new Error(`pairing credentials expired ${new Date(Number(expiry) * 1000).toDateString()} — run "npx rustplus fcm-register" in the app folder`);
+        throw new Error(`pairing credentials expired ${new Date(Number(expiry) * 1000).toDateString()} â€” run "npx rustplus fcm-register" in the app folder`);
     }
 
     if (creds.fcm_credentials) {
@@ -202,7 +209,7 @@ function onPush(data) {
     }
 
     if (channel === 'alarm' && serverId !== session?.server.id) {
-        alert('alarm', `${title}${message ? ` — ${message}` : ''}${body.name ? ` (${body.name})` : ''}`);
+        alert('alarm', `${title}${message ? ` â€” ${message}` : ''}${body.name ? ` (${body.name})` : ''}`);
     }
 }
 
@@ -338,7 +345,7 @@ class Session {
 
     fail(e) {
         log(`session error (${this.server.name}):`, errText(e));
-        this.setStatus(`error: ${errText(e)} — retrying`);
+        this.setStatus(`error: ${errText(e)} â€” retrying`);
         if (this.closed) return;
         this.clearTimers();
         clearTimeout(this.retryTimer);
@@ -364,7 +371,7 @@ class Session {
         if (b.teamMessage?.message) this.onTeamMessage(plain(b.teamMessage.message));
         if (b.entityChanged) {
             const { entityId, payload } = plain(b.entityChanged);
-            const device = this.devices.list[String(entityId)];
+            const device = this.devices.get(entityId);
             if (!device) return;
             if (this.devices.apply(entityId, payload)) alert('alarm', `${device.name} triggered`);
             this.pushDevices();
@@ -542,7 +549,7 @@ class Session {
             const left = d.protectionExpiry * 1000 - Date.now();
             if (left < limit && !this.upkeepWarned.has(d.id)) {
                 this.upkeepWarned.add(d.id);
-                alert('upkeep', left <= 0 ? `${d.name} is DECAYING — no upkeep left` : `${d.name} upkeep runs out in ${Math.round(left / 60000)} minutes`);
+                alert('upkeep', left <= 0 ? `${d.name} is DECAYING â€” no upkeep left` : `${d.name} upkeep runs out in ${Math.round(left / 60000)} minutes`);
             } else if (left >= limit) {
                 this.upkeepWarned.delete(d.id);
             }
@@ -615,6 +622,7 @@ function activate(id) {
     return true;
 }
 
+app.use((req, res, next) => fromApp(req) ? next() : res.status(403).end());
 app.use(express.json());
 app.use(express.static(path.join(ROOT, 'public')));
 app.use('/vendor/leaflet', express.static(path.join(ROOT, 'node_modules', 'leaflet', 'dist')));
@@ -854,18 +862,18 @@ async function discordCommand(cmd, args, msg) {
     const p = config.discordBot.prefix;
     if (cmd === 'help') {
         return `**Commands** (prefix \`${p}\`)\n${chatbot.COMMANDS.filter(c => c !== 'help').map(c => `\`${c}\``).join(' ')}\n`
-            + Object.entries(DISCORD_EXTRA).map(([c, d]) => `\`${c}\` ${d}`).join(' · ');
+            + Object.entries(DISCORD_EXTRA).map(([c, d]) => `\`${c}\` ${d}`).join(' Â· ');
     }
     if (cmd === 'tracked') {
         const snap = await tracking.snapshot();
         const lines = snap.groups.flatMap(g => g.members.map(m =>
-            `${m.state === 'here' ? '🟢' : m.state === 'rust' ? '🟡' : m.state === 'online' ? '🔵' : '⚫'} **${m.name}** (${g.name}) — ${m.stateLabel}${m.rustHours ? ` · ${m.rustHours}h Rust` : ''}`));
-        return lines.length ? { title: 'Tracked players', description: lines.join('\n'), color: 0x3fa9f5 } : 'Nobody tracked yet — add players in the Tracked tab.';
+            `${m.state === 'here' ? 'ðŸŸ¢' : m.state === 'rust' ? 'ðŸŸ¡' : m.state === 'online' ? 'ðŸ”µ' : 'âš«'} **${m.name}** (${g.name}) â€” ${m.stateLabel}${m.rustHours ? ` Â· ${m.rustHours}h Rust` : ''}`));
+        return lines.length ? { title: 'Tracked players', description: lines.join('\n'), color: 0x3fa9f5 } : 'Nobody tracked yet â€” add players in the Tracked tab.';
     }
     if (!session) return 'No Rust server connected right now.';
     if (cmd === 'status') {
         const i = session.state.info;
-        return `**${session.server.name}** — ${session.state.status}${i ? ` · ${i.players}/${i.maxPlayers} players${i.queuedPlayers ? ` (+${i.queuedPlayers})` : ''}` : ''}`;
+        return `**${session.server.name}** â€” ${session.state.status}${i ? ` Â· ${i.players}/${i.maxPlayers} players${i.queuedPlayers ? ` (+${i.queuedPlayers})` : ''}` : ''}`;
     }
     if (cmd === 'timers') {
         const size = session.state.mapMeta?.mapSize;
@@ -874,7 +882,7 @@ async function discordCommand(cmd, args, msg) {
         return { title: 'Decay timers', color: 0xe4a73a, description: list.map(x => {
             const left = x.end - Date.now();
             const where = Number.isFinite(x.x) && size ? ` (${geo.gridOf(x.x, x.y, size)})` : '';
-            return `**${x.label || x.name}**${where} — ${left > 0 ? `falls <t:${Math.round(x.end / 1000)}:R>` : 'decayed'}`;
+            return `**${x.label || x.name}**${where} â€” ${left > 0 ? `falls <t:${Math.round(x.end / 1000)}:R>` : 'decayed'}`;
         }).join('\n') };
     }
     if (cmd === 'say') {
@@ -948,7 +956,7 @@ app.get('/api/settings', (req, res) => res.json({
 app.put('/api/settings', (req, res) => {
     const b = req.body || {};
     if (b.discordBot?.channelId && !/^\d{15,25}$/.test(String(b.discordBot.channelId).trim())) {
-        return res.status(400).json({ error: 'Channel ID should be a long number (right-click the channel → Copy Channel ID)' });
+        return res.status(400).json({ error: 'Channel ID should be a long number (right-click the channel â†’ Copy Channel ID)' });
     }
     if (typeof b.discordWebhook === 'string' && b.discordWebhook !== '(set)') {
         if (b.discordWebhook && !/^https:\/\/(\w+\.)?discord(app)?\.com\/api\/webhooks\//.test(b.discordWebhook)) {
@@ -996,7 +1004,7 @@ wss.on('connection', ws => {
 
 httpServer.on('error', e => {
     if (e.code !== 'EADDRINUSE') throw e;
-    log(`Port ${config.port} is busy — RustScout is probably already running (maybe in the background). Open http://localhost:${config.port}`);
+    log(`Port ${config.port} is busy â€” RustScout is probably already running (maybe in the background). Open http://localhost:${config.port}`);
     process.exit(1);
 });
 let markListening;
