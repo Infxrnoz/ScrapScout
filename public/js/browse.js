@@ -176,7 +176,10 @@
             loadMap(meta(img.naturalWidth, img.naturalHeight));
         };
         img.src = d.mapImage;
-        $('#preview-banner').innerHTML = `<div><b>Previewing</b> ${esc(d.name)} <span class="muted">· ${d.players}/${d.maxPlayers} · ${d.paired ? 'paired — open live for shops, team and events' : 'map only, not paired'}</span></div>
+        $('#preview-banner').innerHTML = d.fallback
+            ? `<div><b>Rust+ isn't answering</b> ${esc(d.name)} <span class="muted">· showing its map from Steam · live markers come back by themselves once Rust+ answers</span></div>
+            <button class="btn small" id="preview-exit">Hide</button>`
+            : `<div><b>Previewing</b> ${esc(d.name)} <span class="muted">· ${d.players}/${d.maxPlayers} · ${d.paired ? 'paired — open live for shops, team and events' : 'map only, not paired'}</span></div>
             <button class="btn small" id="preview-exit">${S.snapshot ? 'Back to live server' : 'Close preview'}</button>`;
         $('#preview-banner').classList.add('on');
         $('#preview-exit').onclick = showLive;
@@ -254,9 +257,16 @@
         renderWatch();
         if (!$('#br-results').children.length) search();
     });
+    function showFallback() {
+        const f = S.snapshot?.fallback;
+        if (!f || S.snapshot.mapMeta || (S.preview && !S.preview.fallback)) return;
+        showPreview({ ...f, fallback: true });
+    }
+    bus.on('fallback', showFallback);
     bus.on('watch', renderWatch);
     bus.on('reset', () => {
-        if (!S.preview || !S.snapshot) return;
+        showFallback();
+        if (!S.preview || !S.snapshot || S.preview.fallback) return;
         const live = S.servers?.list.find(s => s.id === S.snapshot.server.id);
         if (live?.ip === S.preview.ip) showLive();
     });

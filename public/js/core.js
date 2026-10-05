@@ -840,8 +840,10 @@ function connect() {
                 break;
             case 'map':
                 if (S.snapshot) S.snapshot.mapMeta = msg.mapMeta;
+                if (S.preview?.fallback) { S.preview = null; $('#preview-banner').classList.remove('on'); }
                 if (!S.preview) loadMap(msg.mapMeta);
                 break;
+            case 'fallback': if (S.snapshot) S.snapshot.fallback = msg.fallback; bus.emit('fallback'); break;
             case 'watch': bus.emit('watch'); break;
             case 'time': S.time = msg.time; tickClock(); bus.emit('time'); break;
             case 'markers': S.markers = msg.markers; renderMapMarkers(); bus.emit('markers'); break;

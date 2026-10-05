@@ -288,7 +288,13 @@ class Session {
             this.handshaking = false;
             this.onConnected().catch(e => this.fail(e));
         });
-        this.rp.on('disconnected', () => { clearTimeout(this.connectTimer); this.handshaking = false; this.onDisconnected(); });
+        this.rp.on('disconnected', () => {
+            clearTimeout(this.connectTimer);
+            const neverConnected = this.handshaking;
+            this.handshaking = false;
+            if (neverConnected && !this.closed) this.setStatus('not answering');
+            this.onDisconnected();
+        });
         this.rp.on('error', e => log(`rust+ error (${s.name}):`, e.message));
         this.rp.on('message', msg => {
             try { this.onBroadcast(msg); } catch (e) { log('broadcast handling failed:', e.message); }
@@ -309,6 +315,26 @@ class Session {
     setStatus(status) {
         this.state.status = status;
         broadcast({ type: 'status', status });
+        if (status === 'not answering') this.loadFallbackMap();
+    }
+
+    async loadFallbackMap() {
+        if (this.fallbackTried || this.state.mapMeta) return;
+        this.fallbackTried = true;
+        try {
+            const sameName = d => d?.name === this.server.name;
+            const onIp = await browser.resolve(this.server.ip).catch(() => []);
+            const found = await Promise.all(onIp.map(x => browser.details(x.ip, x.queryPort).catch(() => null)));
+            let d = found.find(sameName) || (found.filter(Boolean).length === 1 ? found.find(Boolean) : null);
+            if (!d && config.steamApiKey) {
+                const hit = (await browser.list(config.steamApiKey)).servers.find(sameName);
+                if (hit) d = await browser.details(hit.ip, hit.queryPort).catch(() => null);
+            }
+            if (!d?.mapImage || this.closed || this.state.mapMeta) return;
+            log(`${this.server.name}: Rust+ isn't answering, showing its map from Steam (${d.ip})`);
+            this.state.fallback = d;
+            broadcast({ type: 'fallback', fallback: d });
+        } catch (e) { log('fallback map failed:', errText(e)); }
     }
 
     request(data) {
@@ -501,7 +527,7 @@ class Session {
         broadcast({ type: 'chatMessage', message: m });
         if (m.steamId !== this.server.playerId) alert('chat', `${m.name}: ${m.message}`);
         if (!config.bot.enabled) return;
-        const reply = await chatbot.handle(m.message, config.bot.prefix, this.botContext());
+        const reply = await chatbot.handle(m.message, config.bot.prefix, { ...this.botContext(), sender: String(m.steamId) });
         if (reply) await this.say(reply);
     }
 
@@ -509,6 +535,7 @@ class Session {
         return {
             info: this.state.info, team: this.state.team, markers: this.state.markers, mapMeta: this.state.mapMeta,
             events: this.events, tracker: this.tracker, devices: this.devices,
+            pins: this.pins, decayTable: decayTable(), pushPins: () => this.pushPins(),
             gameTime: () => this.gameTime(),
             setSwitch: (id, value) => this.setSwitch(id, value)
         };

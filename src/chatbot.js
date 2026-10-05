@@ -118,11 +118,37 @@ const COMMANDS = {
         return `${n}x ${name(id)} -> ${y.map(([i, p, qty]) => `${+(qty * p * n).toFixed(1)} ${name(i)}`).join(', ')}`;
     },
 
-    decay: (ctx, args) => {
-        if (!args.length) return 'Usage: decay <structure>, e.g. decay stone wall';
-        const q = args.join(' ').toLowerCase();
-        const hit = GAME.decay.find(d => d.name.toLowerCase() === q) || GAME.decay.find(d => d.name.toLowerCase().includes(q));
-        return hit ? `${hit.name}: ${hit.hp} HP decays fully in ${dur(hit.s * 1000)} without upkeep` : `No decay data for "${q}"`;
+    decay: ({ pins, decayTable, pushPins, team, sender, mapMeta }, args) => {
+        if (!args.length) return 'Usage: decay <HP> or decay <structure> <HP>, e.g. decay 250 or decay metal wall 400';
+        const hp = /^\d+$/.test(args[args.length - 1]) ? Number(args[args.length - 1]) : null;
+        const q = (hp === null ? args : args.slice(0, -1)).join(' ').toLowerCase();
+        const hit = findStructure(q || 'stone wall');
+        if (!hit) return `No decay data for "${q}"`;
+        if (hp === null) return `${hit.name}: ${hit.hp} HP decays fully in ${dur(hit.s * 1000)} without upkeep`;
+        if (!pins) return 'Decay timers need a connected server';
+        if (hp < 1 || hp > hit.hp) return `${hit.name} has ${hit.hp} HP max`;
+        const me = team?.members?.find(m => String(m.steamId) === sender);
+        const at = me && mapMeta ? { x: me.x, y: me.y } : {};
+        const pin = pins.add({ kind: 'decay', name: hit.name, hp, ...at, label: `${hit.name} ${hp} HP` }, decayTable);
+        pushPins?.();
+        return `${hit.name} at ${hp}/${hit.hp} HP falls in ${dur(pin.end - Date.now())}${at.x != null ? ` · pinned at ${gridOf(at.x, at.y, mapMeta.mapSize)}` : ''}${q ? '' : ' (stone wall; say decay metal wall 400 for others)'}`;
+    },
+
+    decaylist: ({ pins, mapMeta }) => {
+        const list = decayPins(pins);
+        if (!list.length) return 'No decay timers. Add one: decay <HP> or decay <structure> <HP>';
+        return list.map((p, i) => `${i + 1}) ${p.name}${p.x != null && mapMeta ? ` @ ${gridOf(p.x, p.y, mapMeta.mapSize)}` : ''}: ${p.end > Date.now() ? `falls in ${dur(p.end - Date.now())}` : 'should be down'}`).join(' | ');
+    },
+
+    cleardecay: ({ pins, pushPins }, args) => {
+        const list = decayPins(pins);
+        if (!list.length) return 'No decay timers to clear';
+        const n = Number(args[0]);
+        const gone = args.length ? (Number.isInteger(n) && list[n - 1] ? [list[n - 1]] : []) : list;
+        if (!gone.length) return `No timer #${args[0]}. Use decaylist to see the numbers`;
+        for (const p of gone) pins.remove(p.id);
+        pushPins?.();
+        return gone.length === 1 ? `Cleared ${gone[0].name}` : `Cleared ${gone.length} decay timers`;
     },
 
     raid: (ctx, args) => {
@@ -182,6 +208,14 @@ const COMMANDS = {
         return `${sw.name} turned ${state}`;
     }
 };
+
+const STRUCTURE_ALIASES = { wood: 'wooden wall', wooden: 'wooden wall', stone: 'stone wall', metal: 'metal wall', sheet: 'metal wall', armored: 'armored wall', armoured: 'armored wall', hqm: 'armored wall', twig: 'twig wall' };
+function findStructure(q) {
+    q = STRUCTURE_ALIASES[q] || q.replace('armoured', 'armored');
+    const n = d => d.name.toLowerCase();
+    return GAME.decay.find(d => n(d) === q) || GAME.decay.find(d => n(d).startsWith(q)) || GAME.decay.find(d => n(d).includes(q));
+}
+const decayPins = pins => (pins?.list || []).filter(p => p.kind === 'decay').sort((a, b) => a.end - b.end);
 
 function eventStatus({ events, markers }, type) {
     if (markersGone(markers)) return NO_MARKERS;
