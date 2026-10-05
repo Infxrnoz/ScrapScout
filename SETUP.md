@@ -82,9 +82,10 @@ npm start
 - **In-game HUD + crosshair:** a small HUD (game clock + time to night, pop, your next decay timer, live alerts) and your own
   crosshair, drawn over Rust. **Ctrl + Alt + O** toggles the HUD, **Ctrl + Alt + X** the crosshair. Design the crosshair
   (style, size, gap, thickness, colour, outline, centre dot) in Settings → *In-game overlay*. Borderless/Windowed mode only.
-- **Night vision:** **Ctrl + Alt + G** brightens your screen a step (Low → Medium → High → Max), **Ctrl + Alt + H** turns it off.
-  Also in the tray menu. It changes Windows' display brightness/gamma like a graphics-driver slider and never touches the game.
-  Play in Borderless/Windowed mode. Some community servers ban gamma tricks in their rules, so check first.
+- **Colour profiles (Pro):** make your own screen profiles (vibrance, saturation, brightness, contrast, gamma, temperature)
+  in Settings → *Colour profiles*, or start from the Night, Snow and Desert presets. **Ctrl + Alt + V** switches to the next
+  profile in game and turns colours off after the last one. Also in the tray menu. It changes your display settings like the
+  NVIDIA Control Panel and never touches the game. Some community servers ban gamma changes in their rules, so check first.
 - **Map files:** got a server's `.map` file (or one from RustMaps)? Drag it onto the window, or Browse → *Open a .map file*.
   You get the full map with monuments, recyclers, card readers, ore and junkpile hotspots, offline, before you ever join.
   *Save image* exports it as a PNG.

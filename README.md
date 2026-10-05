@@ -25,7 +25,7 @@ smart alarms and a bunch of tools in one window, plus a small overlay you can pu
 - **Map pins and decay timers** so you stop forgetting to fill the TC
 - **Raid, crafting, power and gene breeding calculators**
 - **In-game HUD** with the clock, pop and your next decay timer
-- **Custom crosshair** and **night vision**
+- **Custom crosshair** and **colour profiles** you switch with a hotkey
 
 ## Install
 
@@ -46,13 +46,13 @@ That's it. Anything you pair from now on gets picked up automatically.
 | `Ctrl` `Alt` `M` | Open RustScout over the game (press again to go back) |
 | `Ctrl` `Alt` `O` | Toggle the HUD |
 | `Ctrl` `Alt` `X` | Toggle the crosshair (you design it in Settings) |
-| `Ctrl` `Alt` `G` / `H` | Night vision brighter / off |
+| `Ctrl` `Alt` `V` | Next colour profile (off after the last one) |
 
 If another app already uses one of these, the tray menu shows which keys RustScout picked instead.
 
 ## Good to know
 
-- The overlay and night vision only work with Rust in **Borderless** or **Windowed** mode.
+- The overlay and colour profiles only work with Rust in **Borderless** or **Windowed** mode.
 - Some community servers don't allow crosshair overlays or gamma changes. Check the server rules first.
 - Want it running 24/7 on a box somewhere? See [HOSTING.md](HOSTING.md).
 - Building from source or poking at the internals? See [DEVELOPMENT.md](DEVELOPMENT.md).

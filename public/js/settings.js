@@ -130,26 +130,29 @@
         window.desktop.onOverlay(fill);
 
         $('#color-settings').hidden = false;
-        const PRESETS = {
-            default: { vib: -1, sat: 100, bri: 50, con: 50, gam: 1, temp: 0 },
-            balanced: { vib: 70, sat: 110, bri: 50, con: 52, gam: 1.1, temp: 0 },
-            night: { vib: 65, sat: 100, bri: 54, con: 50, gam: 1.6, temp: -10 },
-            snow: { vib: 60, sat: 105, bri: 46, con: 56, gam: 0.95, temp: 10 },
-            desert: { vib: 75, sat: 115, bri: 48, con: 55, gam: 1, temp: -15 }
-        };
         const COL = { vib: v => `${v}%`, sat: v => `${v}%`, bri: v => `${v}%`, con: v => `${v}%`, gam: v => Number(v).toFixed(2), temp: v => v == 0 ? 'Neutral' : v > 0 ? `Warm ${v}` : `Cool ${-v}` };
+        let col = null;
         const fillColor = c => {
-            const r = c.result || {};
+            col = c;
+            const r = c.result || {}, p = c.profiles[c.active];
+            $('#col-profile').innerHTML = c.profiles.map((x, i) => `<option value="${i}">${esc(x.name)}${c.on && i === c.active ? ' (on)' : ''}</option>`).join('');
+            $('#col-profile').value = c.active;
             $('#col-on').checked = c.on;
+            if (document.activeElement !== $('#col-name')) $('#col-name').value = p.name;
+            $('#col-delete').disabled = c.profiles.length < 2;
             for (const k in COL) {
-                const v = k === 'vib' && c.vib < 0 ? (r.driverVibrance >= 0 ? r.driverVibrance : 50) : c[k];
+                const v = k === 'vib' && p.vib < 0 ? (r.driverVibrance >= 0 ? r.driverVibrance : 50) : p[k];
                 $(`#col-${k}`).value = v;
-                $(`#col-${k}-v`).textContent = COL[k](v) + (k === 'vib' && c.vib < 0 ? ' (driver)' : '');
+                $(`#col-${k}-v`).textContent = COL[k](v) + (k === 'vib' && p.vib < 0 ? ' (driver)' : '');
             }
             $('#col-method').textContent = !c.on ? '' : r.ok === false ? 'Windows refused the change on this PC.'
                 : r.method === 'filter' ? 'Windows has no gamma control here (monitors disabled in Device Manager?), so gamma is approximated.'
                 : r.vibrance === 'filter' ? 'No NVIDIA driver found, so vibrance is done as extra saturation.' : '';
-            for (const b of $('#col-presets').children) b.classList.toggle('active', Object.entries(PRESETS[b.dataset.preset]).every(([k, v]) => c[k] == v));
+            if (!$('#col-presets').children.length) {
+                $('#col-presets').innerHTML = Object.keys(c.presets).map(n => `<button data-preset="${esc(n)}">${esc(n)}</button>`).join('');
+                for (const b of $('#col-presets').children) b.onclick = () => sendColor({ profile: col.presets[b.dataset.preset], on: true });
+            }
+            for (const b of $('#col-presets').children) b.classList.toggle('active', Object.entries(c.presets[b.dataset.preset]).every(([k, v]) => p[k] == v));
         };
         let colorPending = 0;
         const sendColor = async patch => {
@@ -157,9 +160,18 @@
             const c = await window.desktop.setColor(patch);
             if (--colorPending === 0) fillColor(c);
         };
+        $('#col-profile').onchange = e => { $('#col-name').blur(); sendColor({ active: Number(e.target.value) }); };
         $('#col-on').onchange = e => sendColor({ on: e.target.checked });
-        for (const b of $('#col-presets').children) b.onclick = () => sendColor({ ...PRESETS[b.dataset.preset], on: true });
-        for (const k in COL) $(`#col-${k}`).oninput = e => sendColor({ [k]: Number(e.target.value), on: true });
+        $('#col-new').onclick = async () => {
+            await sendColor({ profiles: [...col.profiles, { ...col.profiles[col.active], name: `Profile ${col.profiles.length + 1}` }], active: col.profiles.length });
+            $('#col-name').select();
+        };
+        $('#col-name').onchange = e => e.target.value.trim() && sendColor({ profile: { name: e.target.value.trim() } });
+        $('#col-delete').onclick = () => {
+            if (col.profiles.length < 2 || !confirm(`Delete "${col.profiles[col.active].name}"?`)) return;
+            sendColor({ profiles: col.profiles.filter((_, i) => i !== col.active), active: Math.max(0, col.active - 1) });
+        };
+        for (const k in COL) $(`#col-${k}`).oninput = e => sendColor({ profile: { [k]: Number(e.target.value) }, on: true });
         window.desktop.onColor(c => { if (!colorPending) fillColor(c); });
         window.desktop.getColor().then(fillColor);
         (async () => {

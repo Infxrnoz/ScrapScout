@@ -205,16 +205,7 @@ function importAndRestart(dir) {
 }
 
 const GAMMA_EXE = app.isPackaged ? path.join(process.resourcesPath, 'gamma.exe') : path.join(__dirname, 'gamma', 'gamma.exe');
-const GAMMA_LEVELS = [
-    { name: 'Off', gamma: 1, lift: 0 },
-    { name: 'Low', gamma: 1.4, lift: 0.02 },
-    { name: 'Medium', gamma: 1.8, lift: 0.04 },
-    { name: 'High', gamma: 2.3, lift: 0.06 },
-    { name: 'Max', gamma: 2.8, lift: 0.09 }
-];
 const KEY_CHOICES = {
-    gammaCycle: ['Control+Alt+G', 'Control+Alt+N', 'Control+Alt+Shift+G'],
-    gammaOff: ['Control+Alt+H', 'Control+Alt+B', 'Control+Alt+Shift+H'],
     color: ['Control+Alt+V', 'Control+Alt+J', 'Control+Alt+Shift+V'],
     hud: ['Control+Alt+O', 'Control+Alt+U', 'Control+Alt+Shift+O'],
     crosshair: ['Control+Alt+X', 'Control+Alt+C', 'Control+Alt+Shift+X'],
@@ -226,8 +217,6 @@ function claimKey(name, fn) {
     KEYS[name] = KEY_CHOICES[name].find(k => { try { return globalShortcut.register(k, fn); } catch { return false; } }) || null;
 }
 const keyLabel = name => KEYS[name] ? KEYS[name].replace(/Control/, 'Ctrl').replace(/\+/g, ' + ') : 'no free key';
-let gammaLevel = 0;
-let gammaWarned = false;
 let gammaProc = null;
 let gammaQueue = [];
 
@@ -256,58 +245,66 @@ const gammaLine = line => new Promise(resolve => {
     gammaQueue.push(resolve);
     proc.stdin.write(`${line}\n`);
 });
-const gammaSend = (gamma, lift) => gammaLine(`${gamma} ${lift}`);
 
-const COLOR_DEFAULT = { on: false, vib: -1, sat: 100, bri: 50, con: 50, gam: 1, temp: 0 };
-const colorSettings = () => ({ ...COLOR_DEFAULT, ...settings().color });
-let colorResult = null;
-async function applyColor() {
-    const c = colorSettings();
-    const base = settings().vibBase ?? -1;
-    const r = await gammaLine(c.on ? `color ${c.vib} ${c.sat} ${c.bri} ${c.con} ${c.gam} ${c.temp} ${base}` : `color -1 100 50 50 1 0 ${base}`);
-    colorResult = r;
-    if (c.on && !r?.ok) dlog(`colour profile failed: ${JSON.stringify(r)}`);
-    buildTray();
-    win?.webContents.send('color-settings', { ...c, result: r });
-    return { ...c, result: r };
-}
-const setColor = patch => {
-    if (!isPro()) { askPro(); return { ...colorSettings(), result: colorResult }; }
-    saveSettings({ color: { ...colorSettings(), ...patch } });
-    return applyColor();
+const COLOR_PRESETS = {
+    Default: { vib: -1, sat: 100, bri: 50, con: 50, gam: 1, temp: 0 },
+    Balanced: { vib: 70, sat: 110, bri: 50, con: 52, gam: 1.1, temp: 0 },
+    Night: { vib: 65, sat: 100, bri: 54, con: 50, gam: 1.6, temp: -10 },
+    Snow: { vib: 60, sat: 105, bri: 46, con: 56, gam: 0.95, temp: 10 },
+    Desert: { vib: 75, sat: 115, bri: 48, con: 55, gam: 1, temp: -15 }
 };
-ipcMain.handle('color-get', async () => ({ ...colorSettings(), result: colorResult || await gammaLine('color -1 100 50 50 1 0') }));
+const PROFILE_KEYS = Object.keys(COLOR_PRESETS.Default);
+const cleanProfile = p => ({
+    name: String(p?.name || 'Profile').trim().slice(0, 24) || 'Profile',
+    ...Object.fromEntries(PROFILE_KEYS.map(k => [k, Number.isFinite(+p?.[k]) ? +p[k] : COLOR_PRESETS.Default[k]]))
+});
+function colorSettings() {
+    const c = settings().color || {};
+    const profiles = Array.isArray(c.profiles) && c.profiles.length ? c.profiles.map(cleanProfile)
+        : 'vib' in c ? [cleanProfile({ ...c, name: 'My profile' })]
+        : ['Balanced', 'Night', 'Snow', 'Desert'].map(name => cleanProfile({ name, ...COLOR_PRESETS[name] }));
+    return { on: !!c.on, active: Math.min(Math.max(0, c.active | 0), profiles.length - 1), profiles };
+}
+let colorResult = null;
+const colorState = () => ({ ...colorSettings(), presets: COLOR_PRESETS, result: colorResult });
+async function applyColor() {
+    const c = colorSettings(), p = c.profiles[c.active];
+    const base = settings().vibBase ?? -1;
+    colorResult = await gammaLine(c.on ? `color ${p.vib} ${p.sat} ${p.bri} ${p.con} ${p.gam} ${p.temp} ${base}` : `color -1 100 50 50 1 0 ${base}`);
+    if (c.on && !colorResult?.ok) dlog(`colour profile failed: ${JSON.stringify(colorResult)}`);
+    buildTray();
+    win?.webContents.send('color-settings', colorState());
+    return colorState();
+}
+async function setColor(patch) {
+    if (!isPro()) { askPro(); return colorState(); }
+    const c = colorSettings();
+    const profiles = (Array.isArray(patch.profiles) ? patch.profiles.map(cleanProfile) : c.profiles).slice(0, 20);
+    if (!profiles.length) profiles.push(cleanProfile({ name: 'Default', ...COLOR_PRESETS.Default }));
+    const active = Math.min(Math.max(0, (patch.active ?? c.active) | 0), profiles.length - 1);
+    if (patch.profile) profiles[active] = cleanProfile({ ...profiles[active], ...patch.profile });
+    saveSettings({ color: { on: patch.on ?? c.on, active, profiles } });
+    return applyColor();
+}
+async function cycleColor() {
+    if (!isPro()) return askPro();
+    const c = colorSettings();
+    const s = await setColor(!c.on ? { on: true, active: 0 } : c.active + 1 < c.profiles.length ? { active: c.active + 1 } : { on: false });
+    new Notification({ title: 'Colour profile', body: s.on ? s.profiles[s.active].name : 'Off', silent: true, icon: ICON }).show();
+}
+ipcMain.handle('color-get', async () => {
+    if (!colorResult) colorResult = await gammaLine(`color -1 100 50 50 1 0 ${settings().vibBase ?? -1}`);
+    return colorState();
+});
 ipcMain.handle('color-set', (e, patch) => setColor(patch || {}));
 
-async function setGamma(level) {
-    const lv = GAMMA_LEVELS[level];
-    const r = await gammaSend(lv.gamma, lv.lift);
-    if (!r?.ok) {
-        gammaLevel = 0;
-        buildTray();
-        if (level && !gammaWarned) {
-            gammaWarned = true;
-            dialog.showMessageBox(win?.isVisible() ? win : null, {
-                type: 'warning', title: 'Night vision', message: 'Windows wouldn’t let RustScout brighten this display.',
-                detail: 'Try NVIDIA Control Panel → Display → Adjust desktop color settings → Gamma / Digital vibrance, '
-                    + 'or the same setting in AMD Software.'
-            });
-        }
-        return;
-    }
-    gammaLevel = level;
-    buildTray();
-    tray?.setToolTip(level ? `RustScout — night vision ${lv.name}${r.strength < 1 ? ` (${Math.round(r.strength * 100)}%, Windows limit)` : ''}` : 'RustScout');
-}
 function resetGamma() {
     if (!gammaProc) return;
     try { gammaProc.stdin.write('quit\n'); gammaProc.stdin.end(); } catch {  }
 }
 
-function registerGammaKeys() {
-    claimKey('gammaCycle', () => setGamma((gammaLevel + 1) % GAMMA_LEVELS.length));
-    claimKey('gammaOff', () => setGamma(0));
-    claimKey('color', () => setColor({ on: !colorSettings().on }));
+function registerColorKeys() {
+    claimKey('color', cycleColor);
 }
 
 const OVERLAY_DEFAULT = { hud: false, hudCorner: 'top-right', display: null, crosshair: { on: false, style: 'cross', size: 8, gap: 4, thickness: 2, color: '#00ff66', opacity: 1, outline: true, dot: false } };
@@ -434,15 +431,14 @@ function buildTray() {
         { label: 'Start with Windows', type: 'checkbox', checked: autoStart(), click: item => setAutoStart(item.checked) },
         ...(IMPORT_OLD ? [{ label: 'Import from old version (Rust On Top)…', click: importOld }] : []),
         {
-            label: `Night vision (${GAMMA_LEVELS[gammaLevel].name})`, submenu: [
-                ...GAMMA_LEVELS.map((lv, i) => ({ label: lv.name, type: 'radio', checked: i === gammaLevel, click: () => setGamma(i) })),
+            label: `Colour profile (${colorSettings().on ? colorSettings().profiles[colorSettings().active].name : 'off'})`, submenu: [
+                { label: 'Off', type: 'radio', checked: !colorSettings().on, click: () => setColor({ on: false }) },
+                ...colorSettings().profiles.map((p, i) => ({ label: p.name, type: 'radio', checked: colorSettings().on && colorSettings().active === i, click: () => setColor({ on: true, active: i }) })),
                 { type: 'separator' },
-                { label: `${keyLabel('gammaCycle')}: next level`, enabled: false },
-                { label: `${keyLabel('gammaOff')}: off`, enabled: false },
-                { label: 'Works in borderless/windowed mode (not exclusive fullscreen)', enabled: false }
+                { label: `${keyLabel('color')}: next profile`, enabled: false },
+                { label: 'Edit profiles… (Settings tab)', click: () => { showWindow(); win?.webContents.executeJavaScript("openTab('settings'); document.getElementById('color-settings')?.scrollIntoView()").catch(() => {}); } }
             ]
         },
-        { label: `Colour profile (${keyLabel('color')})`, type: 'checkbox', checked: colorSettings().on, click: i => setColor({ on: i.checked }) },
         {
             label: 'In-game overlay', submenu: [
                 { label: `HUD (${keyLabel('hud')})`, type: 'checkbox', checked: overlaySettings().hud, click: i => setOverlay({ hud: i.checked }) },
@@ -485,7 +481,7 @@ app.whenReady().then(async () => {
         if (app.isPackaged && !process.env.ROT_USER_DATA) app.setLoginItemSettings({ openAtLogin: true, args: ['--hidden'] });
     }
     buildTray();
-    registerGammaKeys();
+    registerColorKeys();
     registerOverlayKeys();
     buildTray(); 
     dlog(`started ${app.getVersion()}; hotkeys: ${JSON.stringify(KEYS)}`);
@@ -497,4 +493,4 @@ app.whenReady().then(async () => {
     createWindow();
 });
 
-if (process.env.ROT_USER_DATA) global.__rotTest = { importFrom, importable, importAndRestart, autoStart, setGamma, toggleAppOverlay, gammaState: () => ({ level: gammaLevel, helperRunning: !!gammaProc && gammaProc.exitCode === null }) };
+if (process.env.ROT_USER_DATA) global.__rotTest = { importFrom, importable, importAndRestart, autoStart, toggleAppOverlay, setColor, cycleColor, colorSettings };

@@ -353,16 +353,17 @@
             </section>
 
             <section id="color-settings" hidden>
-                <h2>Colour profile</h2>
-                <p class="hint">Changes the whole screen like the NVIDIA Control Panel does, without touching the game. <b id="key-color">Ctrl + Alt + V</b> turns it on/off in game. Everything goes back to normal when RustScout quits. <span id="col-method"></span></p>
-                <label class="check"><input type="checkbox" id="col-on"> Use this profile</label>
-                <div class="seg" id="col-presets">
-                    <button data-preset="default">Default</button>
-                    <button data-preset="balanced">Balanced</button>
-                    <button data-preset="night">Night</button>
-                    <button data-preset="snow">Snow</button>
-                    <button data-preset="desert">Desert</button>
+                <h2>Colour profiles</h2>
+                <p class="hint">Change the whole screen like the NVIDIA Control Panel does, without touching the game. Make as many profiles as you like. In game, <b id="key-color">Ctrl + Alt + V</b> switches to the next profile, and after the last one turns colours off. Everything goes back to normal when RustScout quits. <span id="col-method"></span></p>
+                <div class="row">
+                    <select id="col-profile"></select>
+                    <button class="btn small ghost" id="col-new" title="New profile">New</button>
+                    <button class="btn small ghost" id="col-delete">Delete</button>
                 </div>
+                <label class="field">Name<input id="col-name" maxlength="24"></label>
+                <label class="check"><input type="checkbox" id="col-on"> Use this profile now</label>
+                <div class="hint">Start from a preset:</div>
+                <div class="seg" id="col-presets"></div>
                 <div class="form">
                     <label class="field">Vibrance <span id="col-vib-v"></span><input type="range" id="col-vib" min="0" max="100"></label>
                     <label class="field">Saturation <span id="col-sat-v"></span><input type="range" id="col-sat" min="0" max="200"></label>
