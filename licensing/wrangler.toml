@@ -1,0 +1,8 @@
+name = "rustscout-pro"
+main = "stripe-worker.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+[[kv_namespaces]]
+binding = "LICENSES"
+id = "186d709cbc1345c6bba43ec23af9bec3"
