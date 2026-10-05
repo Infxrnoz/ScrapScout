@@ -98,6 +98,15 @@ function createWindow() {
     win.on('closed', () => { win = null; });
 }
 
+const isPro = () => !!server?.isPro?.();
+function askPro() {
+    buildTray();
+    showWindow();
+    win?.webContents.executeJavaScript("openTab('settings'); document.getElementById('pro-box')?.scrollIntoView()").catch(() => {});
+    new Notification({ title: 'RustScout Pro', body: 'That’s a Pro feature. Settings → RustScout Pro to unlock it.', icon: ICON }).show();
+}
+const proOnly = fn => (...a) => isPro() ? fn(...a) : askPro();
+
 const SHELL_FILE = path.join(USER, 'desktop.json');
 const settings = () => { try { return JSON.parse(fs.readFileSync(SHELL_FILE, 'utf8')); } catch { return {}; } };
 const saveSettings = patch => fs.writeFileSync(SHELL_FILE, JSON.stringify({ ...settings(), ...patch }, null, 2));
@@ -262,7 +271,11 @@ async function applyColor() {
     win?.webContents.send('color-settings', { ...c, result: r });
     return { ...c, result: r };
 }
-const setColor = patch => { saveSettings({ color: { ...colorSettings(), ...patch } }); return applyColor(); };
+const setColor = patch => {
+    if (!isPro()) { askPro(); return { ...colorSettings(), result: colorResult }; }
+    saveSettings({ color: { ...colorSettings(), ...patch } });
+    return applyColor();
+};
 ipcMain.handle('color-get', async () => ({ ...colorSettings(), result: colorResult || await gammaLine('color -1 100 50 50 1 0') }));
 ipcMain.handle('color-set', (e, patch) => setColor(patch || {}));
 
@@ -307,7 +320,7 @@ const overlaySettings = () => {
 
 function updateOverlay() {
     const o = overlaySettings();
-    const want = o.hud || o.crosshair.on;
+    const want = isPro() && (o.hud || o.crosshair.on);
     if (!want) { overlayWin?.destroy(); overlayWin = null; buildTray(); return; }
     const display = screen.getAllDisplays().find(d => d.id === o.display) || screen.getPrimaryDisplay();
     if (!overlayWin) {
@@ -338,6 +351,7 @@ function sendOverlay() {
 }
 
 function setOverlay(patch) {
+    if (!isPro()) { askPro(); return overlaySettings(); }
     const o = overlaySettings();
     const next = { ...o, ...patch, crosshair: { ...o.crosshair, ...patch.crosshair } };
     saveSettings({ overlay: next });
@@ -407,7 +421,7 @@ function appOverlayStep() {
 }
 
 function registerOverlayKeys() {
-    claimKey('app', () => toggleAppOverlay('hotkey'));
+    claimKey('app', proOnly(() => toggleAppOverlay('hotkey')));
     claimKey('hud', () => setOverlay({ hud: !overlaySettings().hud }));
     claimKey('crosshair', () => setOverlay({ crosshair: { on: !overlaySettings().crosshair.on } }));
 }
@@ -433,7 +447,7 @@ function buildTray() {
             label: 'In-game overlay', submenu: [
                 { label: `HUD (${keyLabel('hud')})`, type: 'checkbox', checked: overlaySettings().hud, click: i => setOverlay({ hud: i.checked }) },
                 { label: `Crosshair (${keyLabel('crosshair')})`, type: 'checkbox', checked: overlaySettings().crosshair.on, click: i => setOverlay({ crosshair: { on: i.checked } }) },
-                { label: `App over the game (${keyLabel('app')})`, click: () => toggleAppOverlay('tray') },
+                { label: `App over the game (${keyLabel('app')})`, click: proOnly(() => toggleAppOverlay('tray')) },
                 { label: 'Customize… (Settings tab)', click: () => { showWindow(); win?.webContents.executeJavaScript("openTab('settings'); document.getElementById('overlay-settings')?.scrollIntoView()").catch(() => {}); } },
                 { label: 'Borderless/windowed mode only', enabled: false }
             ]
@@ -478,7 +492,7 @@ app.whenReady().then(async () => {
     updateOverlay();
     gammaLine(`color -1 100 50 50 1 0 ${settings().vibBase ?? -1}`).then(r => {
         if (r?.driverVibrance >= 0 && (!colorSettings().on || settings().vibBase == null)) saveSettings({ vibBase: r.driverVibrance });
-        if (colorSettings().on) applyColor();
+        if (colorSettings().on && isPro()) applyColor();
     });
     createWindow();
 });

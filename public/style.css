@@ -582,3 +582,7 @@ body.has-bg .topbar { background: var(--bg-2); }
 .ap-themes button.active { border-color: var(--accent); box-shadow: 0 0 10px var(--accent-glow); }
 #ap-bg-url { width: 100%; margin: 6px 0; }
 input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
+
+.locked > :not(h2):not(.pro-lock) { opacity: .35; pointer-events: none; filter: grayscale(.7); }
+.pro-lock { margin: 0 0 8px; padding: 7px 10px; border: 1px solid var(--accent); border-radius: var(--radius); background: color-mix(in srgb, var(--accent) 10%, transparent); font-size: 11px; }
+#pro-key { min-width: 0; }

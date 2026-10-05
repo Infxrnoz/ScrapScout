@@ -46,6 +46,7 @@ const DEFAULT_CONFIG = {
     poll: { markers: 4000, team: 5000, time: 15000, info: 30000, devices: 60000 },
     steamApiKey: '',
     rustMapsKey: '',
+    licenseKey: '',
     discordWebhook: '',
     bot: { enabled: true, prefix: '!' },
     discordBot: { enabled: false, token: '', channelId: '', prefix: '!', allowSay: false },
@@ -988,17 +989,40 @@ app.put('/api/settings', (req, res) => {
     res.json({ ok: true });
 });
 
+const LICENSE_KEY = require('crypto').createPublicKey({ key: Buffer.from('MCowBQYDK2VwAyEAJEjFkGTZEtEibQw8r7mmxkMlZ9vxLc9B6Rch0NqyG6U=', 'base64'), format: 'der', type: 'spki' });
+function readLicense(key) {
+    const m = /^RS1-([\w-]+)\.([\w-]+)$/.exec(String(key || '').trim());
+    if (!m) return null;
+    try {
+        if (!require('crypto').verify(null, Buffer.from(m[1]), LICENSE_KEY, Buffer.from(m[2], 'base64url'))) return null;
+        return JSON.parse(Buffer.from(m[1], 'base64url').toString('utf8'));
+    } catch { return null; }
+}
+const license = () => readLicense(config.licenseKey);
+const isPro = () => !!license();
+app.get('/api/license', (req, res) => res.json({ pro: isPro(), email: license()?.e ?? null }));
+app.post('/api/license', (req, res) => {
+    const l = readLicense(req.body?.key);
+    if (!l) return res.status(400).json({ error: 'That key isn’t valid. Copy the whole key, starting with RS1-' });
+    config.licenseKey = String(req.body.key).trim();
+    saveConfig();
+    res.json({ pro: true, email: l.e ?? null });
+});
+app.delete('/api/license', (req, res) => { config.licenseKey = ''; saveConfig(); res.json({ pro: false }); });
+
 const APPEARANCE_FILE = path.join(DATA, 'appearance.json');
 const BG_DIR = path.join(DATA, 'appearance');
 const BG_TYPES = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp', 'video/mp4': 'mp4', 'video/webm': 'webm' };
 const bgFile = () => fs.existsSync(BG_DIR) ? fs.readdirSync(BG_DIR).find(f => f.startsWith('background.')) : null;
 app.get('/api/appearance', (req, res) => res.json(readJson(APPEARANCE_FILE, {})));
 app.put('/api/appearance', (req, res) => {
+    if (!isPro()) return res.status(402).json({ error: 'Appearance is a RustScout Pro feature' });
     if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) return res.status(400).json({ error: 'Bad appearance' });
     writeJson(APPEARANCE_FILE, req.body);
     res.json({ ok: true });
 });
 app.post('/api/appearance/background', express.raw({ type: Object.keys(BG_TYPES), limit: '80mb' }), (req, res) => {
+    if (!isPro()) return res.status(402).json({ error: 'Appearance is a RustScout Pro feature' });
     const ext = BG_TYPES[String(req.get('content-type')).split(';')[0]];
     if (!ext || !Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: 'Pick a PNG, JPG, GIF, WebP, MP4 or WebM file (80 MB max)' });
     fs.mkdirSync(BG_DIR, { recursive: true });
@@ -1059,4 +1083,4 @@ const shutdown = () => {
 };
 for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGBREAK']) process.on(sig, shutdown);
 
-module.exports = { listening, startFcm, stop, credsFile: CREDS_FILE, fcmStatus: () => fcm.status };
+module.exports = { listening, startFcm, stop, isPro, credsFile: CREDS_FILE, fcmStatus: () => fcm.status };

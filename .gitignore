@@ -19,3 +19,6 @@ dist-app/
 US-Small-Map-A-preview.png
 desktop/gamma/gamma.exe
 __pycache__/
+licensing/*.pem
+data/appearance.json
+data/appearance/

@@ -308,6 +308,19 @@
                 <p class="hint" id="dbot-status"></p>
             </div>
 
+            <section id="pro-box">
+                <h2>RustScout Pro</h2>
+                <p class="hint" id="pro-status">Pro unlocks Appearance, the colour profile and the in-game overlay (HUD, crosshair, app over the game).</p>
+                <div class="row" id="pro-enter">
+                    <input id="pro-key" placeholder="Paste your licence key (RS1-…)">
+                    <button class="btn small" id="pro-activate">Activate</button>
+                </div>
+                <div class="row">
+                    <a class="btn small" id="pro-buy" target="_blank" hidden>Get Pro</a>
+                    <button class="btn small ghost" id="pro-remove" hidden>Remove key</button>
+                </div>
+            </section>
+
             <section id="appearance-settings">
                 <h2>Appearance</h2>
                 <div class="ap-themes" id="ap-themes"></div>
@@ -418,6 +431,7 @@
 
 <script src="/vendor/leaflet/leaflet.js"></script>
 <script src="/js/core.js"></script>
+<script src="/js/pro.js"></script>
 <script src="/js/appearance.js"></script>
 <script src="/js/resources.js"></script>
 <script src="/js/browse.js"></script>

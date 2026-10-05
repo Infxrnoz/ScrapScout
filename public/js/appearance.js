@@ -137,7 +137,7 @@
         fill();
     }
 
-    fetch('/api/appearance').then(r => r.json()).then(saved => { A = { ...DEFAULT, ...saved }; apply(); fill(); }).catch(() => {});
+    Promise.all([window.pro.ready, fetch('/api/appearance').then(r => r.json())]).then(([l, saved]) => { if (!l.pro) return; A = { ...DEFAULT, ...saved }; apply(); fill(); }).catch(() => {});
     document.addEventListener('DOMContentLoaded', wire);
     if (document.readyState !== 'loading') wire();
 })();
