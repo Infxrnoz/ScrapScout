@@ -586,3 +586,18 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 .locked > :not(h2):not(.pro-lock) { opacity: .35; pointer-events: none; filter: grayscale(.7); }
 .pro-lock { margin: 0 0 8px; padding: 7px 10px; border: 1px solid var(--accent); border-radius: var(--radius); background: color-mix(in srgb, var(--accent) 10%, transparent); font-size: 11px; }
 #pro-key { min-width: 0; }
+
+.threat-card { margin-bottom: 10px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); }
+.threat-card.top { border-color: color-mix(in srgb, var(--accent) 60%, transparent); background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 12%, transparent), var(--panel-2)); }
+.tc-kicker { font: 700 11px var(--display); letter-spacing: .14em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+.tc-head { display: flex; align-items: center; gap: 10px; }
+.tc-name { font: 700 16px var(--display); letter-spacing: .06em; text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tc-badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.tc-badge { padding: 2px 8px; border: 1px solid var(--line-2); border-radius: 3px; font: 700 11px var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.tc-badge.online { color: var(--good); border-color: color-mix(in srgb, var(--good) 50%, transparent); }
+.tc-badge.steam { color: var(--blue); border-color: color-mix(in srgb, var(--blue) 50%, transparent); }
+.tc-badge.kills, .tc-badge.ban { color: #ff6a55; border-color: rgba(224, 68, 47, .5); }
+.tc-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+.tc-stats span { display: block; font: 600 10px var(--display); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.tc-stats b { font: 600 13px ui-monospace, Consolas, monospace; }
+.tc-foot { padding-top: 8px; border-top: 1px solid var(--line); font-size: 11px; color: var(--muted); }

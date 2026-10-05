@@ -10,7 +10,7 @@ async function profile(steamId, apiKey) {
     const hit = cache.get(steamId);
     if (hit && Date.now() - hit.at < TTL) return hit.data;
 
-    const data = { steamId, name: null, avatar: null, vacBanned: null, memberSince: null, private: null, rustHours: null, gameBans: null, daysSinceBan: null, created: null };
+    const data = { steamId, name: null, avatar: null, vacBanned: null, memberSince: null, private: null, rustHours: null, rust2w: null, steamHours: null, friends: null, names: null, gameBans: null, daysSinceBan: null, created: null };
     try {
         const xml = await (await fetch(`https://steamcommunity.com/profiles/${steamId}/?xml=1`, { signal: AbortSignal.timeout(8000) })).text();
         data.name = tag(xml, 'steamID');
@@ -19,13 +19,18 @@ async function profile(steamId, apiKey) {
         data.memberSince = tag(xml, 'memberSince');
         data.private = tag(xml, 'privacyState') !== 'public';
     } catch {  }
+    try {
+        const aliases = await (await fetch(`https://steamcommunity.com/profiles/${steamId}/ajaxaliases`, { signal: AbortSignal.timeout(8000) })).json();
+        if (Array.isArray(aliases)) data.names = new Set([...aliases.map(a => a.newname), data.name].filter(Boolean)).size;
+    } catch {  }
 
     if (apiKey) {
         const api = async url => (await fetch(url, { signal: AbortSignal.timeout(8000) })).json();
-        const [bans, games, summary] = await Promise.allSettled([
+        const [bans, games, summary, friends] = await Promise.allSettled([
             api(`https://api.steampowered.com/ISteamUser/GetPlayerBans/v1/?key=${apiKey}&steamids=${steamId}`),
-            api(`https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=${apiKey}&steamid=${steamId}&appids_filter[0]=252490`),
-            api(`https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=${apiKey}&steamids=${steamId}`)
+            api(`https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=${apiKey}&steamid=${steamId}&include_played_free_games=1`),
+            api(`https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=${apiKey}&steamids=${steamId}`),
+            api(`https://api.steampowered.com/ISteamUser/GetFriendList/v1/?key=${apiKey}&steamid=${steamId}&relationship=friend`)
         ]);
         const ban = bans.value?.players?.[0];
         if (ban) {
@@ -33,8 +38,12 @@ async function profile(steamId, apiKey) {
             data.gameBans = ban.NumberOfGameBans;
             data.daysSinceBan = ban.VACBanned || ban.NumberOfGameBans ? ban.DaysSinceLastBan : null;
         }
-        const rust = games.value?.response?.games?.find(g => g.appid === 252490);
-        if (rust) data.rustHours = Math.round(rust.playtime_forever / 60);
+        const owned = games.value?.response?.games;
+        const rust = owned?.find(g => g.appid === 252490);
+        if (rust) { data.rustHours = Math.round(rust.playtime_forever / 60); data.rust2w = Math.round((rust.playtime_2weeks || 0) / 60); }
+        if (owned?.length) data.steamHours = Math.round(owned.reduce((t, g) => t + (g.playtime_forever || 0), 0) / 60);
+        const fl = friends.value?.friendslist?.friends;
+        if (Array.isArray(fl)) data.friends = fl.length;
         const p = summary.value?.response?.players?.[0];
         if (p?.timecreated) data.created = p.timecreated * 1000;
         if (p?.personaname) data.name ??= p.personaname;

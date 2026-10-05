@@ -735,6 +735,11 @@ app.get('/api/threats', guard(async (req, res) => {
         k.servers = [...k.servers];
         if (k.killerId) k.profile = await steam.profile(k.killerId, config.steamApiKey);
     }));
+    const live = await steam.summaries(list.map(k => k.killerId), config.steamApiKey).catch(() => ({}));
+    for (const k of list) {
+        const p = live[k.killerId];
+        k.status = !p ? null : p.gameId === '252490' ? 'rust' : p.state > 0 ? 'steam' : 'offline';
+    }
     res.json({ killers: list, recent: threats.data.deaths.slice(-50).reverse(), apiKey: !!config.steamApiKey });
 }));
 
