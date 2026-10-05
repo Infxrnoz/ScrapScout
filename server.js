@@ -138,7 +138,7 @@ function alert(kind, text, extra = {}) {
     }
 }
 
-const NOT_LINKED = process.env.DESKTOP ? 'not set up â€” link your Steam account' : 'not set up â€” run setup.bat (or npm run register) to link Steam';
+const NOT_LINKED = process.env.DESKTOP ? 'not set up — link your Steam account' : 'not set up — run setup.bat (or npm run register) to link Steam';
 const fcm = { status: NOT_LINKED, client: null };
 
 function loadGcmCredentials() {
@@ -149,7 +149,7 @@ function loadGcmCredentials() {
     if (!creds) throw new Error(`cannot read ${file}`);
     const expiry = creds[creds.hoster]?.expire_date;
     if (expiry && Number(expiry) * 1000 < Date.now()) {
-        throw new Error(`pairing credentials expired ${new Date(Number(expiry) * 1000).toDateString()} â€” run "npx rustplus fcm-register" in the app folder`);
+        throw new Error(`pairing credentials expired ${new Date(Number(expiry) * 1000).toDateString()} — run "npx rustplus fcm-register" in the app folder`);
     }
 
     if (creds.fcm_credentials) {
@@ -209,7 +209,7 @@ function onPush(data) {
     }
 
     if (channel === 'alarm' && serverId !== session?.server.id) {
-        alert('alarm', `${title}${message ? ` â€” ${message}` : ''}${body.name ? ` (${body.name})` : ''}`);
+        alert('alarm', `${title}${message ? ` — ${message}` : ''}${body.name ? ` (${body.name})` : ''}`);
     }
 }
 
@@ -345,7 +345,7 @@ class Session {
 
     fail(e) {
         log(`session error (${this.server.name}):`, errText(e));
-        this.setStatus(`error: ${errText(e)} â€” retrying`);
+        this.setStatus(`error: ${errText(e)} — retrying`);
         if (this.closed) return;
         this.clearTimers();
         clearTimeout(this.retryTimer);
@@ -549,7 +549,7 @@ class Session {
             const left = d.protectionExpiry * 1000 - Date.now();
             if (left < limit && !this.upkeepWarned.has(d.id)) {
                 this.upkeepWarned.add(d.id);
-                alert('upkeep', left <= 0 ? `${d.name} is DECAYING â€” no upkeep left` : `${d.name} upkeep runs out in ${Math.round(left / 60000)} minutes`);
+                alert('upkeep', left <= 0 ? `${d.name} is DECAYING — no upkeep left` : `${d.name} upkeep runs out in ${Math.round(left / 60000)} minutes`);
             } else if (left >= limit) {
                 this.upkeepWarned.delete(d.id);
             }
@@ -862,18 +862,18 @@ async function discordCommand(cmd, args, msg) {
     const p = config.discordBot.prefix;
     if (cmd === 'help') {
         return `**Commands** (prefix \`${p}\`)\n${chatbot.COMMANDS.filter(c => c !== 'help').map(c => `\`${c}\``).join(' ')}\n`
-            + Object.entries(DISCORD_EXTRA).map(([c, d]) => `\`${c}\` ${d}`).join(' Â· ');
+            + Object.entries(DISCORD_EXTRA).map(([c, d]) => `\`${c}\` ${d}`).join(' · ');
     }
     if (cmd === 'tracked') {
         const snap = await tracking.snapshot();
         const lines = snap.groups.flatMap(g => g.members.map(m =>
-            `${m.state === 'here' ? 'ðŸŸ¢' : m.state === 'rust' ? 'ðŸŸ¡' : m.state === 'online' ? 'ðŸ”µ' : 'âš«'} **${m.name}** (${g.name}) â€” ${m.stateLabel}${m.rustHours ? ` Â· ${m.rustHours}h Rust` : ''}`));
-        return lines.length ? { title: 'Tracked players', description: lines.join('\n'), color: 0x3fa9f5 } : 'Nobody tracked yet â€” add players in the Tracked tab.';
+            `${m.state === 'here' ? '🟢' : m.state === 'rust' ? '🟡' : m.state === 'online' ? '🔵' : '⚫'} **${m.name}** (${g.name}) — ${m.stateLabel}${m.rustHours ? ` · ${m.rustHours}h Rust` : ''}`));
+        return lines.length ? { title: 'Tracked players', description: lines.join('\n'), color: 0x3fa9f5 } : 'Nobody tracked yet — add players in the Tracked tab.';
     }
     if (!session) return 'No Rust server connected right now.';
     if (cmd === 'status') {
         const i = session.state.info;
-        return `**${session.server.name}** â€” ${session.state.status}${i ? ` Â· ${i.players}/${i.maxPlayers} players${i.queuedPlayers ? ` (+${i.queuedPlayers})` : ''}` : ''}`;
+        return `**${session.server.name}** — ${session.state.status}${i ? ` · ${i.players}/${i.maxPlayers} players${i.queuedPlayers ? ` (+${i.queuedPlayers})` : ''}` : ''}`;
     }
     if (cmd === 'timers') {
         const size = session.state.mapMeta?.mapSize;
@@ -882,7 +882,7 @@ async function discordCommand(cmd, args, msg) {
         return { title: 'Decay timers', color: 0xe4a73a, description: list.map(x => {
             const left = x.end - Date.now();
             const where = Number.isFinite(x.x) && size ? ` (${geo.gridOf(x.x, x.y, size)})` : '';
-            return `**${x.label || x.name}**${where} â€” ${left > 0 ? `falls <t:${Math.round(x.end / 1000)}:R>` : 'decayed'}`;
+            return `**${x.label || x.name}**${where} — ${left > 0 ? `falls <t:${Math.round(x.end / 1000)}:R>` : 'decayed'}`;
         }).join('\n') };
     }
     if (cmd === 'say') {
@@ -956,7 +956,7 @@ app.get('/api/settings', (req, res) => res.json({
 app.put('/api/settings', (req, res) => {
     const b = req.body || {};
     if (b.discordBot?.channelId && !/^\d{15,25}$/.test(String(b.discordBot.channelId).trim())) {
-        return res.status(400).json({ error: 'Channel ID should be a long number (right-click the channel â†’ Copy Channel ID)' });
+        return res.status(400).json({ error: 'Channel ID should be a long number (right-click the channel → Copy Channel ID)' });
     }
     if (typeof b.discordWebhook === 'string' && b.discordWebhook !== '(set)') {
         if (b.discordWebhook && !/^https:\/\/(\w+\.)?discord(app)?\.com\/api\/webhooks\//.test(b.discordWebhook)) {
@@ -988,6 +988,28 @@ app.put('/api/settings', (req, res) => {
     res.json({ ok: true });
 });
 
+const APPEARANCE_FILE = path.join(DATA, 'appearance.json');
+const BG_DIR = path.join(DATA, 'appearance');
+const BG_TYPES = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp', 'video/mp4': 'mp4', 'video/webm': 'webm' };
+const bgFile = () => fs.existsSync(BG_DIR) ? fs.readdirSync(BG_DIR).find(f => f.startsWith('background.')) : null;
+app.get('/api/appearance', (req, res) => res.json(readJson(APPEARANCE_FILE, {})));
+app.put('/api/appearance', (req, res) => {
+    if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) return res.status(400).json({ error: 'Bad appearance' });
+    writeJson(APPEARANCE_FILE, req.body);
+    res.json({ ok: true });
+});
+app.post('/api/appearance/background', express.raw({ type: Object.keys(BG_TYPES), limit: '80mb' }), (req, res) => {
+    const ext = BG_TYPES[String(req.get('content-type')).split(';')[0]];
+    if (!ext || !Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: 'Pick a PNG, JPG, GIF, WebP, MP4 or WebM file (80 MB max)' });
+    fs.mkdirSync(BG_DIR, { recursive: true });
+    const old = bgFile();
+    if (old) fs.rmSync(path.join(BG_DIR, old), { force: true });
+    fs.writeFileSync(path.join(BG_DIR, `background.${ext}`), req.body);
+    res.json({ ok: true, kind: ['mp4', 'webm'].includes(ext) ? 'video' : 'image' });
+});
+app.get('/api/appearance/background', (req, res) => { const f = bgFile(); f ? res.sendFile(path.join(BG_DIR, f)) : res.sendStatus(404); });
+app.delete('/api/appearance/background', (req, res) => { const f = bgFile(); if (f) fs.rmSync(path.join(BG_DIR, f), { force: true }); res.json({ ok: true }); });
+
 app.post('/api/settings/test-webhook', guard(async (req, res) => {
     if (!config.discordWebhook) return res.status(400).json({ error: 'No webhook set' });
     const r = await fetch(config.discordWebhook, {
@@ -1004,7 +1026,7 @@ wss.on('connection', ws => {
 
 httpServer.on('error', e => {
     if (e.code !== 'EADDRINUSE') throw e;
-    log(`Port ${config.port} is busy â€” RustScout is probably already running (maybe in the background). Open http://localhost:${config.port}`);
+    log(`Port ${config.port} is busy — RustScout is probably already running (maybe in the background). Open http://localhost:${config.port}`);
     process.exit(1);
 });
 let markListening;

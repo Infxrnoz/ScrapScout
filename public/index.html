@@ -308,6 +308,37 @@
                 <p class="hint" id="dbot-status"></p>
             </div>
 
+            <section id="appearance-settings">
+                <h2>Appearance</h2>
+                <div class="ap-themes" id="ap-themes"></div>
+                <div class="row wrap">
+                    <label class="field">Accent<input type="color" id="ap-accent"></label>
+                    <label class="field">Accent 2<input type="color" id="ap-accent2"></label>
+                    <label class="check"><input type="checkbox" id="ap-rainbow"> Rainbow</label>
+                </div>
+                <h3>Background</h3>
+                <div class="row wrap">
+                    <label class="btn small">Choose image / GIF / video<input type="file" id="ap-bg-file" accept="image/png,image/jpeg,image/gif,image/webp,video/mp4,video/webm" hidden></label>
+                    <button class="btn small ghost" id="ap-bg-clear">Remove</button>
+                    <span class="hint" id="ap-bg-status"></span>
+                </div>
+                <input id="ap-bg-url" placeholder="…or paste an https:// link to an image, GIF or MP4">
+                <div class="form">
+                    <label class="field">Darken <span id="ap-dim-v"></span><input type="range" id="ap-dim" min="0" max="0.9" step="0.05"></label>
+                    <label class="field">Blur <span id="ap-blur-v"></span><input type="range" id="ap-blur" min="0" max="20"></label>
+                </div>
+                <h3>Style</h3>
+                <div class="form">
+                    <label class="field">Panel opacity <span id="ap-opacity-v"></span><input type="range" id="ap-opacity" min="0.2" max="1" step="0.05"></label>
+                    <label class="field">Glass blur <span id="ap-glass-v"></span><input type="range" id="ap-glass" min="0" max="30"></label>
+                    <label class="field">Glow <span id="ap-glow-v"></span><input type="range" id="ap-glow" min="0" max="2.5" step="0.1"></label>
+                    <label class="field">Corners <span id="ap-radius-v"></span><input type="range" id="ap-radius" min="0" max="16"></label>
+                    <div class="row wrap"><label class="field">Font<select id="ap-font"></select></label>
+                    <label class="field">Headings<select id="ap-heading"></select></label></div>
+                </div>
+                <button class="btn small ghost" id="ap-reset">Reset appearance</button>
+            </section>
+
             <section id="color-settings" hidden>
                 <h2>Colour profile</h2>
                 <p class="hint">Changes the whole screen like the NVIDIA Control Panel does, without touching the game. <b id="key-color">Ctrl + Alt + V</b> turns it on/off in game. Everything goes back to normal when RustScout quits. <span id="col-method"></span></p>
@@ -387,6 +418,7 @@
 
 <script src="/vendor/leaflet/leaflet.js"></script>
 <script src="/js/core.js"></script>
+<script src="/js/appearance.js"></script>
 <script src="/js/resources.js"></script>
 <script src="/js/browse.js"></script>
 <script src="/js/shops.js"></script>
