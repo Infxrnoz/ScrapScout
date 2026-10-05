@@ -22,3 +22,4 @@ __pycache__/
 licensing/*.pem
 data/appearance.json
 data/appearance/
+licensing/.wrangler/

@@ -47,6 +47,7 @@ const DEFAULT_CONFIG = {
     steamApiKey: '',
     rustMapsKey: '',
     licenseKey: '',
+    licenseActivation: '',
     discordWebhook: '',
     bot: { enabled: true, prefix: '!' },
     discordBot: { enabled: false, token: '', channelId: '', prefix: '!', allowSay: false },
@@ -1022,25 +1023,59 @@ app.put('/api/settings', (req, res) => {
 });
 
 const LICENSE_KEY = require('crypto').createPublicKey({ key: Buffer.from('MCowBQYDK2VwAyEAJEjFkGTZEtEibQw8r7mmxkMlZ9vxLc9B6Rch0NqyG6U=', 'base64'), format: 'der', type: 'spki' });
-function readLicense(key) {
-    const m = /^RS1-([\w-]+)\.([\w-]+)$/.exec(String(key || '').trim());
+const LICENSE_SERVER = process.env.RUSTSCOUT_LICENSE_SERVER || 'https://rustscout-pro.infxrnoz.workers.dev';
+const { machineId, keyId } = require('./src/machine');
+function readSigned(token, prefix) {
+    const m = new RegExp(`^${prefix}-([\\w-]+)\\.([\\w-]+)$`).exec(String(token || '').trim());
     if (!m) return null;
     try {
         if (!require('crypto').verify(null, Buffer.from(m[1]), LICENSE_KEY, Buffer.from(m[2], 'base64url'))) return null;
         return JSON.parse(Buffer.from(m[1], 'base64url').toString('utf8'));
     } catch { return null; }
 }
+const readLicense = key => readSigned(key, 'RS1');
 const license = () => readLicense(config.licenseKey);
-const isPro = () => !!license();
-app.get('/api/license', (req, res) => res.json({ pro: isPro(), email: license()?.e ?? null }));
-app.post('/api/license', (req, res) => {
-    const l = readLicense(req.body?.key);
-    if (!l) return res.status(400).json({ error: 'That key isn’t valid. Copy the whole key, starting with RS1-' });
-    config.licenseKey = String(req.body.key).trim();
+const activated = () => {
+    const a = readSigned(config.licenseActivation, 'RA1');
+    return !!a && a.m === machineId && a.k === keyId(config.licenseKey);
+};
+const isPro = () => !!license() && activated();
+
+async function licenseServer(action, key) {
+    let r;
+    try {
+        r = await fetch(`${LICENSE_SERVER}/${action}`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key, machine: machineId }), signal: AbortSignal.timeout(15000)
+        });
+    } catch { return { status: 503, error: 'Couldn’t reach the licence server. Check your internet and try again.' }; }
+    const j = await r.json().catch(() => ({}));
+    return r.ok ? j : { status: r.status, error: j.error || `Licence server answered ${r.status}` };
+}
+
+app.get('/api/license', (req, res) => res.json({ pro: isPro(), email: license()?.e ?? null, needsActivation: !!license() && !activated() }));
+app.post('/api/license', guard(async (req, res) => {
+    const key = String(req.body?.key || config.licenseKey || '').trim();
+    if (!readLicense(key)) return res.status(400).json({ error: 'That key isn’t valid. Copy the whole key, starting with RS1-' });
+    const r = await licenseServer('activate', key);
+    if (r.error) return res.status(r.status).json({ error: r.error });
+    const a = readSigned(r.activation, 'RA1');
+    if (!a || a.m !== machineId || a.k !== keyId(key)) return res.status(502).json({ error: 'The licence server sent back something unexpected. Try again.' });
+    config.licenseKey = key;
+    config.licenseActivation = r.activation;
     saveConfig();
-    res.json({ pro: true, email: l.e ?? null });
-});
-app.delete('/api/license', (req, res) => { config.licenseKey = ''; saveConfig(); res.json({ pro: false }); });
+    res.json({ pro: true, email: readLicense(key).e ?? null });
+}));
+app.delete('/api/license', guard(async (req, res) => {
+    if (config.licenseKey && activated()) {
+        const r = await licenseServer('deactivate', config.licenseKey);
+        if (r.error && r.status !== 409) return res.status(r.status).json({ error: r.error });
+    }
+    config.licenseKey = '';
+    config.licenseActivation = '';
+    saveConfig();
+    res.json({ pro: false });
+}));
 
 const APPEARANCE_FILE = path.join(DATA, 'appearance.json');
 const BG_DIR = path.join(DATA, 'appearance');

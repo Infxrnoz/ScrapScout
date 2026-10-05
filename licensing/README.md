@@ -1,6 +1,8 @@
 # RustScout Pro licensing
 
-Keys look like `RS1-<payload>.<signature>`. They are signed with `private.pem` (stays on your PC, never commit it; git ignores it). The app only has the public key, so it checks keys offline.
+Keys look like `RS1-<payload>.<signature>`. They are signed with `private.pem` (stays on your PC, never commit it; git ignores it). The app only has the public key.
+
+Each key works on **one PC at a time**. The first time someone clicks **Activate**, the app sends the key and an anonymous PC ID to the worker. The worker remembers which PC owns the key and sends back a signed activation (`RA1-…`) for that PC, so the app works offline after that. Another PC is refused until **Remove key** is clicked on the first one. A key can move PCs 3 times per 30 days.
 
 ## Give someone a key by hand
 
@@ -8,20 +10,50 @@ Keys look like `RS1-<payload>.<signature>`. They are signed with `private.pem` (
 node licensing/issue.js "their@email.com"
 ```
 
-## Stripe setup
+The email or name is readable inside the key, so only put in what the buyer is fine with.
+
+## Activate your own PC without the worker
+
+```
+node licensing/activate-here.js
+```
+
+Signs an activation for this PC with your private key and writes it to your RustScout config. Restart RustScout afterwards.
+
+## Cloudflare Worker setup (Stripe + activation)
+
+1. Make a free Cloudflare account, then log in from this folder:
+   ```
+   npx wrangler login
+   ```
+2. Create the storage that remembers which PC owns each key:
+   ```
+   npx wrangler kv namespace create LICENSES
+   ```
+   It prints an `id`. Put it in a file `licensing/wrangler.toml`:
+   ```toml
+   name = "rustscout-pro"
+   main = "stripe-worker.js"
+   compatibility_date = "2026-10-01"
+   kv_namespaces = [{ binding = "LICENSES", id = "PASTE_ID_HERE" }]
+   ```
+3. Deploy and add the secrets:
+   ```
+   cd licensing
+   npx wrangler deploy
+   npx wrangler secret put LICENSE_PRIVATE_KEY
+   npx wrangler secret put STRIPE_SECRET_KEY
+   ```
+   For `LICENSE_PRIVATE_KEY` paste the whole contents of `private.pem`. For `STRIPE_SECRET_KEY` use a **restricted key** with only *Checkout Sessions: Read*.
+4. The deploy prints the worker address, like `https://rustscout-pro.<you>.workers.dev`. If it isn't `https://rustscout-pro.infxrnoz.workers.dev`, change `LICENSE_SERVER` in `server.js`.
+
+## Stripe
 
 1. Stripe Dashboard → Product catalogue → add **RustScout Pro** (one-time price).
-2. Payment Links → create one for it. Under **After payment**, choose **Don't show confirmation page → Redirect** to
-   `https://<your-worker>.workers.dev/success?session_id={CHECKOUT_SESSION_ID}`
-3. Deploy `stripe-worker.js` as a Cloudflare Worker (free):
-   ```
-   npx wrangler deploy licensing/stripe-worker.js --name rustscout-pro --compatibility-date 2026-10-01
-   npx wrangler secret put STRIPE_SECRET_KEY --name rustscout-pro
-   npx wrangler secret put LICENSE_PRIVATE_KEY --name rustscout-pro
-   ```
-   For `STRIPE_SECRET_KEY` use a **restricted key** with only *Checkout Sessions: Read*. For `LICENSE_PRIVATE_KEY` paste the whole contents of `private.pem`.
-4. Put the Payment Link URL in `BUY_URL` at the top of `public/js/pro.js`, so the app shows a **Get Pro** button.
+2. Payment Links → create one for it. Under **After payment**, choose **Redirect** to
+   `https://<your-worker>/success?session_id={CHECKOUT_SESSION_ID}`
+3. Put the Payment Link URL in `BUY_URL` at the top of `public/js/pro.js` and on the website.
 
-Test the whole flow with Stripe test mode first (card `4242 4242 4242 4242`).
+Test with Stripe test mode first (card `4242 4242 4242 4242`).
 
 Back up `private.pem` somewhere safe. If it's lost, existing keys keep working but you can't make new ones. If it leaks, anyone can make keys.

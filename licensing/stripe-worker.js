@@ -5,6 +5,38 @@ const page = (title, body) => new Response(`<!doctype html><meta charset="utf-8"
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const b64url = bytes => btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
+const PUBLIC_KEY = 'MCowBQYDK2VwAyEAJEjFkGTZEtEibQw8r7mmxkMlZ9vxLc9B6Rch0NqyG6U=';
+const MOVES_PER_30_DAYS = 3;
+const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+const unb64url = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+const sha256 = async text => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)))].map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
+
+async function validKey(key) {
+    const m = /^RS1-([\w-]+)\.([\w-]+)$/.exec(key);
+    if (!m) return false;
+    const pub = await crypto.subtle.importKey('spki', unb64url(PUBLIC_KEY.replace(/=+$/, '')), { name: 'Ed25519' }, false, ['verify']);
+    return crypto.subtle.verify('Ed25519', pub, unb64url(m[2]), new TextEncoder().encode(m[1]));
+}
+
+async function activation(request, env, action) {
+    const { key, machine } = await request.json().catch(() => ({}));
+    if (typeof key !== 'string' || !/^[0-9a-f]{32}$/.test(String(machine)) || !(await validKey(key.trim()))) return json({ error: 'That key isn’t valid.' }, 400);
+    const id = await sha256(key.trim());
+    const rec = JSON.parse(await env.LICENSES.get(id) || 'null') || { m: null, moves: [] };
+    const now = Date.now();
+    const recentMoves = rec.moves.filter(t => now - t < 30 * 86400e3);
+    if (action === 'deactivate') {
+        if (rec.m !== machine) return json({ error: 'This key isn’t active on this PC.' }, 409);
+        await env.LICENSES.put(id, JSON.stringify({ m: null, moves: [...recentMoves, now] }));
+        return json({ ok: true });
+    }
+    if (rec.m && rec.m !== machine) return json({ error: 'This key is already activated on another PC. Remove it there first (Settings → RustScout Pro → Remove key).' }, 409);
+    if (!rec.m && recentMoves.length > MOVES_PER_30_DAYS) return json({ error: 'This key has moved PCs too often this month. Try again later or contact support.' }, 429);
+    await env.LICENSES.put(id, JSON.stringify({ m: machine, moves: recentMoves }));
+    const payload = b64url(new TextEncoder().encode(JSON.stringify({ k: id, m: machine, t: Math.floor(now / 1000) })));
+    return json({ activation: `RA1-${payload}.${await sign(payload, env.LICENSE_PRIVATE_KEY)}` });
+}
+
 async function sign(text, pem) {
     const der = Uint8Array.from(atob(pem.replace(/-----[^-]+-----|\s/g, '')), c => c.charCodeAt(0));
     const key = await crypto.subtle.importKey('pkcs8', der, { name: 'Ed25519' }, false, ['sign']);
@@ -14,6 +46,7 @@ async function sign(text, pem) {
 export default {
     async fetch(request, env) {
         const url = new URL(request.url);
+        if (request.method === 'POST' && (url.pathname === '/activate' || url.pathname === '/deactivate')) return activation(request, env, url.pathname.slice(1));
         if (url.pathname !== '/success') return page('RustScout Pro', '<p>Nothing here.</p>');
         const id = url.searchParams.get('session_id') || '';
         if (!/^cs_(live|test)_\w+$/.test(id)) return page('Hmm', '<p>That link is missing its payment id.</p>');
