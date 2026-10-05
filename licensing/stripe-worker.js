@@ -30,6 +30,7 @@ async function activation(request, env, action) {
         await env.LICENSES.put(id, JSON.stringify({ m: null, moves: [...recentMoves, now] }));
         return json({ ok: true });
     }
+    if (rec.revoked) return json({ error: 'This key has been disabled. Contact support if you think that’s a mistake.' }, 403);
     if (rec.m && rec.m !== machine) return json({ error: 'This key is already activated on another PC. Remove it there first (Settings → RustScout Pro → Remove key).' }, 409);
     if (!rec.m && recentMoves.length > MOVES_PER_30_DAYS) return json({ error: 'This key has moved PCs too often this month. Try again later or contact support.' }, 429);
     await env.LICENSES.put(id, JSON.stringify({ m: machine, moves: recentMoves }));
