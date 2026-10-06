@@ -1,13 +1,14 @@
+const SECURITY = { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer', 'Cache-Control': 'no-store', 'X-Frame-Options': 'DENY' };
 const page = (title, body) => new Response(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${title}</title><body style="font:15px system-ui;background:#0b0b0c;color:#ece7df;max-width:620px;margin:60px auto;padding:0 16px">
-<h1 style="color:#e0442f">${title}</h1>${body}</body>`, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+<h1 style="color:#e0442f">${title}</h1>${body}</body>`, { headers: { ...SECURITY, 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" } });
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const b64url = bytes => btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
 const PUBLIC_KEY = 'MCowBQYDK2VwAyEAJEjFkGTZEtEibQw8r7mmxkMlZ9vxLc9B6Rch0NqyG6U=';
 const MOVES_PER_30_DAYS = 3;
-const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...SECURITY, 'Content-Type': 'application/json' } });
 const unb64url = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
 const sha256 = async text => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)))].map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
 
@@ -33,7 +34,7 @@ async function activation(request, env, action) {
     if (rec.revoked) return json({ error: 'This key has been disabled. Contact support if you think that’s a mistake.' }, 403);
     if (rec.m && rec.m !== machine) return json({ error: 'This key is already activated on another PC. Remove it there first (Settings → RustScout Pro → Remove key).' }, 409);
     if (!rec.m && recentMoves.length > MOVES_PER_30_DAYS) return json({ error: 'This key has moved PCs too often this month. Try again later or contact support.' }, 429);
-    await env.LICENSES.put(id, JSON.stringify({ m: machine, moves: recentMoves }));
+    if (rec.m !== machine) await env.LICENSES.put(id, JSON.stringify({ m: machine, moves: recentMoves }));
     const payload = b64url(new TextEncoder().encode(JSON.stringify({ k: id, m: machine, t: Math.floor(now / 1000) })));
     return json({ activation: `RA1-${payload}.${await sign(payload, env.LICENSE_PRIVATE_KEY)}` });
 }
@@ -59,7 +60,7 @@ export default {
         const payload = b64url(new TextEncoder().encode(JSON.stringify({ e: session.customer_details?.email || '', s: id, t: session.created })));
         const key = `RS1-${payload}.${await sign(payload, env.LICENSE_PRIVATE_KEY)}`;
         return page('Thanks for getting RustScout Pro!', `<p>Your licence key:</p>
-<textarea readonly rows="5" style="width:100%;background:#141416;color:#ece7df;border:1px solid #37373d;border-radius:6px;padding:10px;font:13px monospace" onclick="this.select()">${esc(key)}</textarea>
+<textarea readonly rows="5" style="width:100%;background:#141416;color:#ece7df;border:1px solid #37373d;border-radius:6px;padding:10px;font:13px monospace">${esc(key)}</textarea>
 <p>In RustScout: <b>Settings → RustScout Pro</b>, paste the key and click <b>Activate</b>.</p>
 <p style="color:#8e8a84">Bookmark this page: opening it again shows the same key.</p>`);
     }
