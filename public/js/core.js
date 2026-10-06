@@ -676,7 +676,7 @@ function renderOnboarding() {
         <div class="onboard"><div class="title">Get your server on the map</div><ol>${step1}
         <li>In Rust, join your server and press <b>ESC → Rust+ → Pair with server</b></li>
         <li>It shows up here by itself within a few seconds</li></ol>
-        <p class="muted">No pairing needed to look around: the <b>Browse</b> tab shows any server's map.</p></div>`)}</div>`;
+        <p class="muted">With Pro, the <b>Browse</b> tab shows any server's map without pairing.</p></div>`)}</div>`;
     $('#onboard-link')?.addEventListener('click', linkSteam);
 }
 bus.on('servers', renderOnboarding);
@@ -777,6 +777,6 @@ function connect() {
 async function boot() {
     [S.items, S.raid, S.game] = await Promise.all(['items', 'raid', 'game'].map(f => fetch(`/data/${f}.json`).then(r => r.json())));
     bus.emit('ready');
-    openTab(store.get('tab', 'shops'));
+    openTab(document.querySelector(`.rail button[data-panel="${store.get('tab', 'team')}"]`) ? store.get('tab', 'team') : 'team');
     connect();
 }

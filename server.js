@@ -118,6 +118,7 @@ function alert(kind, text, extra = {}) {
     if (!rule) return;
     const entry = { kind, label: ALERT_KINDS[kind], text, t: Date.now(), server: session?.server.name, ...extra };
     broadcast({ type: 'alert', alert: entry, toast: rule.toast });
+    if (rule.discord && !isPro()) return;
     if (rule.discord && !config.discordWebhook && discordBot?.user) {
         discordBot.post({ title: ALERT_KINDS[kind], description: text, color: ALERT_COLORS[kind] ?? 0x3fa9f5, footer: entry.server ? { text: entry.server } : undefined })
             .catch(e => log('discord bot alert failed:', e.message));
@@ -508,7 +509,7 @@ class Session {
         return {
             info: this.state.info, team: this.state.team, mapMeta: this.state.mapMeta, devices: this.devices,
             pins: this.pins, decayTable: decayTable(), pushPins: () => this.pushPins(),
-            gameTime: () => this.gameTime(),
+            gameTime: () => this.gameTime(), isPro: isPro(),
             setSwitch: (id, value) => this.setSwitch(id, value)
         };
     }
@@ -630,6 +631,9 @@ const needSession = (req, res, next) => session ? next() : res.status(409).json(
 const guard = fn => async (req, res) => {
     try { await fn(req, res); } catch (e) { res.status(500).json({ error: errText(e) }); }
 };
+const needPro = (req, res, next) => isPro() ? next() : res.status(402).json({ error: 'That’s a RustScout Pro feature', pro: true });
+app.use(['/api/browse', '/api/watch', '/api/rustmaps', '/api/mapfile', '/api/mapfiles', '/api/terrain', '/api/facilities', '/api/tracked', '/api/rmtile', '/api/settings/test-webhook'], needPro);
+app.use('/api/pins', (req, res, next) => ['POST', 'PUT'].includes(req.method) ? needPro(req, res, next) : next());
 
 app.get('/api/map.jpg', (req, res) => {
     if (!session) return res.sendStatus(404);
@@ -726,8 +730,9 @@ app.get('/api/threats', guard(async (req, res) => {
         if (d.server) k.servers.add(d.server);
     }
     const list = Object.values(byKiller).sort((a, b) => b.kills - a.kills || b.last - a.last).slice(0, 50);
+    for (const k of list) k.servers = [...k.servers];
+    if (!isPro()) return res.json({ killers: list, recent: threats.data.deaths.slice(-50).reverse(), apiKey: !!config.steamApiKey, pro: false });
     await Promise.all(list.map(async k => {
-        k.servers = [...k.servers];
         if (k.killerId) k.profile = await steam.profile(k.killerId, config.steamApiKey);
     }));
     const live = await steam.summaries(list.map(k => k.killerId), config.steamApiKey).catch(() => ({}));
@@ -735,7 +740,7 @@ app.get('/api/threats', guard(async (req, res) => {
         const p = live[k.killerId];
         k.status = !p ? null : p.gameId === '252490' ? 'rust' : p.state > 0 ? 'steam' : 'offline';
     }
-    res.json({ killers: list, recent: threats.data.deaths.slice(-50).reverse(), apiKey: !!config.steamApiKey });
+    res.json({ killers: list, recent: threats.data.deaths.slice(-50).reverse(), apiKey: !!config.steamApiKey, pro: true });
 }));
 
 const watch = new Persisted(path.join(DATA, 'watch.json'), { list: {}, pop: {} });
@@ -900,11 +905,10 @@ function startDiscordBot() {
     discordBot?.stop();
     discordBot = null;
     const c = config.discordBot;
-    if (!c.enabled) return;
+    if (!c.enabled || !isPro()) return;
     discordBot = new DiscordBot({ token: c.token, channelId: c.channelId, prefix: c.prefix, onCommand: discordCommand, log });
     discordBot.start();
 }
-startDiscordBot();
 app.get('/api/tracked', guard(async (req, res) => res.json(await tracking.snapshot())));
 app.post('/api/tracked/refresh', guard(async (req, res) => { await tracking.poll(); res.json(await tracking.snapshot()); }));
 app.post('/api/tracked/groups', guard(async (req, res) => res.json(await tracking.addGroup(req.body?.name))));
@@ -1019,6 +1023,7 @@ async function licenseServer(action, key) {
     return r.ok ? j : { status: r.status, error: j.error || `Licence server answered ${r.status}` };
 }
 
+startDiscordBot();
 app.get('/api/license', (req, res) => res.json({ pro: isPro(), email: license()?.e ?? null, needsActivation: !!license() && !activated() }));
 app.post('/api/license', guard(async (req, res) => {
     const key = String(req.body?.key || config.licenseKey || '').trim();
@@ -1030,6 +1035,7 @@ app.post('/api/license', guard(async (req, res) => {
     config.licenseKey = key;
     config.licenseActivation = r.activation;
     saveConfig();
+    startDiscordBot();
     res.json({ pro: true, email: readLicense(key).e ?? null });
 }));
 app.delete('/api/license', guard(async (req, res) => {
@@ -1040,6 +1046,7 @@ app.delete('/api/license', guard(async (req, res) => {
     config.licenseKey = '';
     config.licenseActivation = '';
     saveConfig();
+    startDiscordBot();
     res.json({ pro: false });
 }));
 

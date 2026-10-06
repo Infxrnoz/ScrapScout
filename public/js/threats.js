@@ -10,11 +10,16 @@
             return;
         }
         loaded = true;
-        $('#threat-key-hint').style.display = data.apiKey ? 'none' : '';
+        $('#threat-key-hint').style.display = data.apiKey || !data.pro ? 'none' : '';
         const STATUS = { rust: ['online', 'In Rust'], steam: ['steam', 'On Steam'], offline: ['offline', 'Offline'] };
         const hrs = v => v == null ? '–' : `${v.toLocaleString()} h`;
         const num = v => v == null ? '–' : v.toLocaleString();
-        $('#threat-list').innerHTML = data.killers.map((k, i) => {
+        if (!data.pro) {
+            $('#threat-list').innerHTML = (data.killers.length ? '<p class="pro-lock">Pro adds each killer\'s account age, hours, past names, friends, bans and whether they\'re online now.</p>' : '')
+                + data.killers.map((k, i) => `<div class="item threat"><span class="rank">${i + 1}</span>
+                    <div class="grow"><div class="title">${esc(k.name)}</div><div class="sub">killed you <b class="flame">${k.kills}×</b> · last ${ago(k.last)}</div></div></div>`).join('')
+                || empty('No player has killed you yet (since this app started listening). Deaths arrive as Rust+ notifications sent by the game server, so a server whose Rust+ isn’t working sends none. Animal and NPC deaths show under Recent deaths.');
+        } else $('#threat-list').innerHTML = data.killers.map((k, i) => {
             const p = k.profile || {};
             const st = STATUS[k.status];
             const created = p.created ? new Date(p.created).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : p.memberSince || '–';

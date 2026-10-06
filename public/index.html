@@ -108,7 +108,7 @@
 
         <section data-panel="threats">
             <h2>Threats</h2>
-            <p class="hint">Everyone who has killed you, ranked. Pulled from Rust+ death notifications, with their public Steam profile.</p>
+            <p class="hint">Everyone who has killed you, ranked, from Rust+ death notifications. Pro adds their public Steam profile.</p>
             <p class="hint" id="threat-key-hint">Add a Steam Web API key in Settings to also see Rust hours and game bans.</p>
             <div id="threat-list" class="list"></div>
             <h3>Recent deaths</h3>
@@ -257,8 +257,6 @@
 
             <h2>Integrations</h2>
             <div class="form">
-                <label class="field">Discord webhook URL<input id="set-webhook" placeholder="https://discord.com/api/webhooks/…"></label>
-                <button class="btn ghost small" id="webhook-test" type="button">Send test message</button>
                 <label class="field">Steam Web API key (optional)<input id="set-steamkey" placeholder="steamcommunity.com/dev/apikey"></label>
                 <label class="field">RustMaps API key (optional — heatmaps)<input id="set-rustmaps" placeholder="rustmaps.com → Dashboard → API key"></label>
                 <p class="hint">Everyone adds <b>their own</b> keys. Both are free and stay on your PC.<br>
@@ -270,7 +268,13 @@
             <div class="row"><label class="check"><input type="checkbox" id="set-bot"> Answer commands in team chat</label>
             <label class="field">Prefix<input id="set-prefix" maxlength="3" class="num"></label></div>
 
-            <h2>Discord bot</h2>
+            <section id="discord-settings">
+            <h2>Discord</h2>
+            <div class="form">
+                <label class="field">Webhook URL (alerts)<input id="set-webhook" placeholder="https://discord.com/api/webhooks/…"></label>
+                <button class="btn ghost small" id="webhook-test" type="button">Send test message</button>
+            </div>
+            <h3>Discord bot</h3>
             <p class="hint">Optional. Lets your Discord channel ask the app things (<code>!pop</code>, <code>!timers</code>, <code>!tracked</code>, <code>!help</code>…). Alerts are also posted through the bot when no webhook is set. Setup steps are in SETUP.md (section "Discord bot").</p>
             <div class="form">
                 <label class="check"><input type="checkbox" id="set-dbot"> Run the Discord bot</label>
@@ -282,10 +286,11 @@
                 <label class="check"><input type="checkbox" id="set-dbot-say"> Allow <code>!say</code> to post into in-game team chat</label>
                 <p class="hint" id="dbot-status"></p>
             </div>
+            </section>
 
             <section id="pro-box">
                 <h2>RustScout Pro</h2>
-                <p class="hint" id="pro-status">Pro unlocks Appearance, the colour profile and the in-game overlay (HUD, crosshair, app over the game).</p>
+                <p class="hint" id="pro-status"></p>
                 <div class="row" id="pro-enter">
                     <input id="pro-key" placeholder="Paste your licence key (RS1-…)">
                     <button class="btn small" id="pro-activate">Activate</button>
