@@ -18,9 +18,10 @@ smart alarms and a bunch of tools in one window, plus a small overlay you can pu
 
 ## What it does
 
-- **Live map** with your team, vending machines, monuments, ore and resource spots
+- **Live map** with your team, monuments, ore and resource spots
 - **Team tracker** and tracked players, so you know who's online and where
-- **Alerts** for explosions, cargo, heli, Chinook, locked crates, smart alarms, teammate deaths and low TC upkeep, in the app and on Discord if you want
+- **Alerts** for smart alarms, teammate deaths, who killed you, low TC upkeep and decay timers, in the app and on Discord if you want
+- Shops and map events (heli, cargo, Chinook, crates…) aren't included: Facepunch removed them from Rust+ on 6 Aug 2026
 - **Server browser** with pop, wipe dates and map previews
 - **Map pins and decay timers** so you stop forgetting to fill the TC
 - **Raid, crafting, power and gene breeding calculators**

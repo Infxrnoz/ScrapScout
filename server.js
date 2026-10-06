@@ -5,8 +5,7 @@ const express = require('express');
 const { WebSocketServer } = require('ws');
 const RustPlus = require('@liamcottle/rustplus.js');
 const PushReceiverClient = require('@liamcottle/push-receiver/src/client');
-const { VendingTracker, SULFUR } = require('./src/vending');
-const { TeamTracker, EventTracker, PopTracker } = require('./src/trackers');
+const { TeamTracker, PopTracker } = require('./src/trackers');
 const { Devices } = require('./src/devices');
 const { Persisted } = require('./src/persist');
 const { Pins } = require('./src/pins');
@@ -28,22 +27,19 @@ const SERVERS_FILE = path.join(DATA, 'servers.json');
 
 const ALERT_KINDS = {
     teamDeath: 'Teammate died', teamOnline: 'Teammate online', teamOffline: 'Teammate offline', teamRespawn: 'Teammate respawned',
-    killedBy: 'You were killed', alarm: 'Smart alarm', cargo: 'Cargo spawned', cargoGone: 'Cargo left', heli: 'Heli spawned',
-    heliGone: 'Heli gone', ch47: 'Chinook spawned', crate: 'Locked crate', vendor: 'Travelling vendor', explosion: 'Explosion',
-    sulfurSale: 'Sulfur sale', chat: 'Team chat', upkeep: 'TC upkeep low', watchWipe: 'Watched server wiped',
-    trackedOnline: 'Tracked player joined', trackedOffline: 'Tracked player left', decay: 'Decay timer',
-    oilrig: 'Oil rig triggered', plane: 'Airdrop inbound'
+    killedBy: 'You were killed', alarm: 'Smart alarm', chat: 'Team chat', upkeep: 'TC upkeep low', watchWipe: 'Watched server wiped',
+    trackedOnline: 'Tracked player joined', trackedOffline: 'Tracked player left', decay: 'Decay timer'
 };
 const DEFAULT_ALERTS = Object.fromEntries(Object.keys(ALERT_KINDS).map(k => [k, {
-    toast: !['teamRespawn', 'chat', 'explosion', 'cargoGone', 'heliGone'].includes(k),
-    discord: ['teamDeath', 'killedBy', 'alarm', 'cargo', 'heli', 'upkeep', 'watchWipe', 'trackedOnline', 'trackedOffline', 'decay'].includes(k)
+    toast: !['teamRespawn', 'chat'].includes(k),
+    discord: ['teamDeath', 'killedBy', 'alarm', 'upkeep', 'watchWipe', 'trackedOnline', 'trackedOffline', 'decay'].includes(k)
 }]));
 
 const DEFAULT_CONFIG = {
     port: 3000,
     credentialsFile: '',
     steamId: '',
-    poll: { markers: 4000, team: 5000, time: 15000, info: 30000, devices: 60000 },
+    poll: { team: 5000, time: 15000, info: 30000, devices: 60000 },
     steamApiKey: '',
     rustMapsKey: '',
     licenseKey: '',
@@ -51,7 +47,6 @@ const DEFAULT_CONFIG = {
     discordWebhook: '',
     bot: { enabled: true, prefix: '!' },
     discordBot: { enabled: false, token: '', channelId: '', prefix: '!', allowSay: false },
-    sulfurSaleAlertMin: 1000,
     upkeepAlertHours: 3,
     decayAlertMinutes: 30,
     alerts: DEFAULT_ALERTS
@@ -264,15 +259,13 @@ const publicServers = () => ({
 class Session {
     constructor(server) {
         this.server = server;
-        this.state = { status: 'connecting', info: null, time: null, markers: [], team: null, mapMeta: null };
+        this.state = { status: 'connecting', info: null, time: null, team: null, mapMeta: null };
         this.timers = [];
         this.timeSamples = [];
         this.chat = [];
         this.closed = false;
         const dir = serverDir(server.id);
-        this.tracker = new VendingTracker(path.join(dir, 'vending.json'));
         this.teamTracker = new TeamTracker(path.join(dir, 'team.json'));
-        this.events = new EventTracker(path.join(dir, 'events.json'));
         this.pop = new PopTracker(path.join(dir, 'pop.json'));
         this.devices = new Devices(path.join(dir, 'devices.json'));
         this.pins = new Pins(path.join(dir, 'pins.json'));
@@ -350,9 +343,8 @@ class Session {
         await this.refreshMap();
         if (this.closed) return;
         this.setStatus('online');
-        await Promise.allSettled([this.refreshMarkers(), this.refreshTeam(), this.refreshTime(), this.loadChat(), this.refreshDevices()]);
+        await Promise.allSettled([this.refreshTeam(), this.refreshTime(), this.loadChat(), this.refreshDevices()]);
         if (this.closed) return;
-        this.every(config.poll.markers, () => this.refreshMarkers());
         this.every(config.poll.team, () => this.refreshTeam());
         this.every(config.poll.time, () => this.refreshTime());
         this.every(config.poll.info, () => this.refreshInfo());
@@ -410,7 +402,6 @@ class Session {
     async refreshInfo() {
         const { info } = await this.request({ getInfo: {} });
         this.state.info = plain(info);
-        this.tracker.setWipe(Number(this.state.info.wipeTime));
         this.pop.add(this.state.info, Date.now());
         if (this.server.name === this.server.id && info.name) {
             this.server.name = info.name;
@@ -455,25 +446,6 @@ class Session {
                 this.state.mapMeta.levelUrl = d.levelUrl;
             }
         } catch {  }
-    }
-
-    async refreshMarkers() {
-        const { mapMarkers } = await this.request({ getMapMarkers: {} });
-        const now = Date.now();
-        this.state.markers = plain(mapMarkers).markers;
-        const sales = this.tracker.update(this.state.markers, now);
-        broadcast({ type: 'markers', markers: this.state.markers });
-        if (sales.length) {
-            broadcast({ type: 'sales', sales });
-            for (const s of sales) {
-                if (SULFUR.has(s.currencyId) && s.paid >= config.sulfurSaleAlertMin) {
-                    alert('sulfurSale', `${s.name || 'A shop'} just took ${s.paid} sulfur`, { x: s.x, y: s.y });
-                }
-            }
-        }
-        const evs = this.events.update(this.state.markers, now, this.state.mapMeta);
-        for (const e of evs) alert(e.kind, e.text, { x: e.x, y: e.y });
-        broadcast({ type: 'events', events: this.events.snapshot() });
     }
 
     async refreshTeam() {
@@ -534,8 +506,7 @@ class Session {
 
     botContext() {
         return {
-            info: this.state.info, team: this.state.team, markers: this.state.markers, mapMeta: this.state.mapMeta,
-            events: this.events, tracker: this.tracker, devices: this.devices,
+            info: this.state.info, team: this.state.team, mapMeta: this.state.mapMeta, devices: this.devices,
             pins: this.pins, decayTable: decayTable(), pushPins: () => this.pushPins(),
             gameTime: () => this.gameTime(),
             setSwitch: (id, value) => this.setSwitch(id, value)
@@ -614,7 +585,6 @@ class Session {
             server: { id: this.server.id, name: this.server.name, playerId: this.server.playerId },
             ...this.state,
             chat: this.chat,
-            events: this.events.snapshot(),
             teamLog: this.teamSnapshot(),
             devices: Object.values(this.devices.list),
             pins: this.pins.list
@@ -627,8 +597,7 @@ class Session {
         clearTimeout(this.retryTimer);
         clearTimeout(this.connectTimer);
         clearInterval(this.decayTimer);
-        this.tracker.close();
-        for (const p of [this.teamTracker.store, this.events.store, this.pop.store, this.devices.store, this.pins.store]) p.flush();
+        for (const p of [this.teamTracker.store, this.pop.store, this.devices.store, this.pins.store]) p.flush();
         try { this.rp.disconnect(); } catch {  }
     }
 }
@@ -696,8 +665,6 @@ app.delete('/api/servers/:id', (req, res) => {
     res.json(publicServers());
 });
 
-app.get('/api/targets', (req, res) => res.json(session ? session.tracker.targets(Number(req.query.hours ?? 6)) : []));
-app.get('/api/sales', (req, res) => res.json(session ? session.tracker.recentSales(Number(req.query.limit ?? 100)) : []));
 app.get('/api/pop', (req, res) => res.json(session ? session.pop.store.data.samples : []));
 
 app.post('/api/chat', needSession, guard(async (req, res) => {
@@ -983,7 +950,7 @@ app.get('/api/settings', (req, res) => res.json({
     bot: config.bot, alerts: config.alerts, alertKinds: ALERT_KINDS,
     discordBot: { ...config.discordBot, token: config.discordBot.token ? '(set)' : '' },
     discordBotStatus: discordBot?.status ?? 'off',
-    sulfurSaleAlertMin: config.sulfurSaleAlertMin, upkeepAlertHours: config.upkeepAlertHours, decayAlertMinutes: config.decayAlertMinutes,
+    upkeepAlertHours: config.upkeepAlertHours, decayAlertMinutes: config.decayAlertMinutes,
     commands: chatbot.COMMANDS
 }));
 
@@ -1015,7 +982,6 @@ app.put('/api/settings', (req, res) => {
     }
     if (b.alerts) for (const k of Object.keys(ALERT_KINDS)) if (b.alerts[k]) config.alerts[k] = { toast: !!b.alerts[k].toast, discord: !!b.alerts[k].discord };
     const num = v => v !== '' && v !== null && v !== undefined && Number.isFinite(+v) && +v >= 0 ? +v : null;
-    if (num(b.sulfurSaleAlertMin) !== null) config.sulfurSaleAlertMin = num(b.sulfurSaleAlertMin);
     if (num(b.upkeepAlertHours) !== null) config.upkeepAlertHours = num(b.upkeepAlertHours);
     if (num(b.decayAlertMinutes) > 0) config.decayAlertMinutes = num(b.decayAlertMinutes);
     saveConfig();

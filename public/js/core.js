@@ -1,20 +1,10 @@
 'use strict';
 
 const GRID = 146.25;
-const MARKER = { player: 1, explosion: 2, vending: 3, ch47: 4, cargo: 5, crate: 6, radius: 7, heli: 8, travellingVendor: 9 };
-const EVENT_META = {
-    2: { code: 'BOOM', name: 'Explosion', key: 'explosion', color: '#ff5a36' },
-    4: { code: 'CH47', name: 'Chinook', key: 'ch47', color: '#c9d64a' },
-    5: { code: 'SHIP', name: 'Cargo Ship', key: 'cargo', color: '#3fa9f5' },
-    6: { code: 'LOOT', name: 'Locked Crate', key: 'crate', color: '#f0c23c' },
-    8: { code: 'HELI', name: 'Patrol Helicopter', key: 'heli', color: '#ff3b30' },
-    9: { code: 'VEND', name: 'Travelling Vendor', key: 'vendor', color: '#9b6bff' }
-};
-
 const S = {
     items: {}, raid: null, game: null, servers: null, snapshot: null,
-    mapMeta: null, markers: [], team: null, teamLog: null, info: null, time: null,
-    targets: [], targetIds: new Set(), sales: [], events: null, chat: [], devices: [], pop: [], pins: []
+    mapMeta: null, team: null, teamLog: null, info: null, time: null,
+    chat: [], devices: [], pop: [], pins: []
 };
 
 const bus = {
@@ -85,9 +75,6 @@ function craftRaw(want) {
 }
 const craftsFor = (id, qty) => Math.ceil(qty / (S.game.craft[id]?.n || 1));
 const empty = text => `<div class="empty-note">${text}</div>`;
-const NO_MARKER_DATA = 'Facepunch removed shops and map events (heli, cargo, crates…) from Rust+ on 6 Aug 2026, '
-    + 'so no companion app can see them right now. This fills in again automatically if they bring the data back.';
-const markerDataMissing = () => S.snapshot?.status === 'online' && !S.markers.some(m => m.type !== MARKER.player);
 
 const correctedSize = size => {
     const r = size % GRID;
@@ -147,15 +134,13 @@ map.on('zoomend', () => {
 });
 
 const layers = {
-    grid: L.layerGroup(), monuments: L.layerGroup(), vending: L.layerGroup(), team: L.layerGroup(),
-    events: L.layerGroup(), deaths: L.layerGroup(), notes: L.layerGroup(), pins: L.layerGroup()
+    grid: L.layerGroup(), monuments: L.layerGroup(), team: L.layerGroup(),
+    deaths: L.layerGroup(), notes: L.layerGroup(), pins: L.layerGroup()
 };
-const LAYER_NAMES = { grid: 'Grid', monuments: 'Monument names', vending: 'Vending machines', team: 'Team', events: 'Events', deaths: 'Team deaths', notes: 'Team map notes', pins: 'My pins & decay timers' };
+const LAYER_NAMES = { grid: 'Grid', monuments: 'Monument names', team: 'Team', deaths: 'Team deaths', notes: 'Team map notes', pins: 'My pins & decay timers' };
 const layerEnabled = key => store.get('layers', {})[key] !== false;
 let mapImage = null;
-const vendLayers = new Map();
 const teamLayers = new Map();
-const eventLayers = new Map();
 
 const toLatLng = (x, y) => {
     const half = S.mapMeta.mapSize / 2;
@@ -176,7 +161,7 @@ function loadMap(meta) {
     S.mapMeta = meta;
     $('#map-empty').style.display = meta ? 'none' : '';
     Object.values(layers).forEach(l => l.clearLayers());
-    vendLayers.clear(); teamLayers.clear(); eventLayers.clear();
+    teamLayers.clear();
     if (mapImage) { mapImage.remove(); mapImage = null; }
     heat.reset();
     if (!meta) { bus.emit('mapLoaded'); return; }
@@ -203,7 +188,6 @@ function loadMap(meta) {
     }
     for (const key of Object.keys(layers)) if (layerEnabled(key)) layers[key].addTo(map);
     bus.emit('mapLoaded');
-    renderMapMarkers();
     renderTeamMarkers();
     renderDeathMarkers();
     heat.load(meta);
@@ -539,75 +523,6 @@ map.on('mousemove', e => {
     $('#cursor-readout').textContent = `${gridOf(x, y)} · ${Math.round(x)}, ${Math.round(y)}`;
 });
 
-function vendingPopup(vm) {
-    const target = S.targets.find(t => t.id === String(vm.id));
-    const rows = (vm.sellOrders || []).map(o => `
-        <tr>
-            <td>${icon(o.itemId)} ${o.quantity}× ${esc(itemName(o.itemId))}${o.itemIsBlueprint ? ' <span class="tag">BP</span>' : ''}</td>
-            <td class="muted">for</td>
-            <td>${icon(o.currencyId)} ${o.costPerItem}× ${esc(itemName(o.currencyId))}</td>
-            <td class="stock ${o.amountInStock ? '' : 'out'}">${o.amountInStock || 'OUT'}</td>
-        </tr>`).join('');
-    const stats = target ? `<div class="stats"><b class="flame">▲ ${fmt(target.sulfurCollected)}</b> sulfur collected
-        ${target.sulfurSold ? `· sold ${fmt(target.sulfurSold)}` : ''} · ${target.trades} trades · last ${ago(target.lastSale)}</div>` : '';
-    return `<div class="vend-pop"><h4>${esc(vm.name || 'Vending Machine')}</h4>
-        <div class="meta"><span class="grid">${gridOf(vm.x, vm.y)}</span> · ${(vm.sellOrders || []).length} listings</div>
-        <table>${rows || '<tr><td class="muted">Nothing for sale</td></tr>'}</table>${stats}</div>`;
-}
-
-function vendStyle(vm) {
-    if (S.targetIds.has(String(vm.id))) return { radius: 7, color: '#fff', weight: 2, fillColor: '#f07a2c', fillOpacity: 1, className: 'vend-target' };
-    if (vm.outOfStock) return { radius: 4.5, color: '#111', weight: 1, fillColor: '#77777a', fillOpacity: 0.9 };
-    return { radius: 5, color: '#0b2a05', weight: 1.5, fillColor: '#8bd83b', fillOpacity: 1 };
-}
-
-function renderMapMarkers() {
-    if (!S.mapMeta || S.preview) return;
-    const seenVend = new Set();
-    const seenEvents = new Set();
-    for (const m of S.markers) {
-        const id = String(m.id);
-        if (m.type === MARKER.vending) {
-            seenVend.add(id);
-            let layer = vendLayers.get(id);
-            const html = vendingPopup(m);
-            if (!layer) {
-                layer = L.circleMarker(toLatLng(m.x, m.y), vendStyle(m)).bindPopup(html, { maxWidth: 460 });
-                layer.addTo(layers.vending);
-                vendLayers.set(id, layer);
-            } else {
-                layer.setLatLng(toLatLng(m.x, m.y)).setStyle(vendStyle(m));
-                if (layer._lastHtml !== html) layer.setPopupContent(html);
-            }
-            layer._lastHtml = html;
-            if (S.targetIds.has(id)) layer.bringToFront();
-        } else if (EVENT_META[m.type]) {
-            seenEvents.add(id);
-            const meta = EVENT_META[m.type];
-            let layer = eventLayers.get(id);
-            if (!layer) {
-                layer = L.marker(toLatLng(m.x, m.y), {
-                    icon: L.divIcon({
-                        className: '', iconSize: [30, 30], iconAnchor: [15, 15],
-                        html: `<div class="event-icon" style="--c:${meta.color}"><span>${meta.code}</span></div>`
-                    })
-                }).bindTooltip(meta.name, { direction: 'top', offset: [0, -14] }).addTo(layers.events);
-                eventLayers.set(id, layer);
-            } else {
-                layer.setLatLng(toLatLng(m.x, m.y));
-            }
-        }
-    }
-    for (const [id, layer] of vendLayers) if (!seenVend.has(id)) { layer.remove(); vendLayers.delete(id); }
-    for (const [id, layer] of eventLayers) if (!seenEvents.has(id)) { layer.remove(); eventLayers.delete(id); }
-}
-
-function focusVending(id, x, y) {
-    flyTo(x, y, 1);
-    const layer = vendLayers.get(String(id));
-    if (layer) setTimeout(() => layer.openPopup(), 650);
-}
-
 function renderTeamMarkers() {
     if (!S.mapMeta || S.preview) return;
     const members = S.team?.members || [];
@@ -688,16 +603,6 @@ function tickClock() {
     $('#phase-bar').className = c.isDay ? 'day' : 'night';
 }
 
-function renderEventChips() {
-    const active = (S.events?.active || []).filter(e => e.type !== 'explosion');
-    $('#event-chips').innerHTML = active.map(e => {
-        const meta = Object.values(EVENT_META).find(m => m.key === e.type);
-        return `<button class="chip" style="--c:${meta.color}" data-x="${e.x}" data-y="${e.y}" title="${esc(e.where)}">
-            <i></i>${meta.code} <span data-since="${e.since}">${dur(Date.now() - e.since)}</span></button>`;
-    }).join('');
-    $$('#event-chips .chip').forEach(c => c.onclick = () => flyTo(+c.dataset.x, +c.dataset.y, -0.5));
-}
-
 function renderSparkline() {
     const s = S.pop.slice(-120);
     const svg = $('#pop-spark');
@@ -709,12 +614,11 @@ function renderSparkline() {
 
 setInterval(() => {
     tickClock();
-    $$('#event-chips [data-since]').forEach(el => el.textContent = dur(Date.now() - Number(el.dataset.since)));
 }, 1000);
 
 const ALERT_STYLE = {
     teamDeath: '#d8412f', killedBy: '#d8412f', alarm: '#ff3b30', teamOnline: '#7cc043', teamOffline: '#8d8a85',
-    sulfurSale: '#f07a2c', upkeep: '#e4a73a', cargo: '#3fa9f5', heli: '#ff3b30', ch47: '#c9d64a', crate: '#f0c23c', vendor: '#9b6bff'
+    upkeep: '#e4a73a'
 };
 S.alerts = [];
 
@@ -810,16 +714,13 @@ function applySnapshot(snap) {
     S.snapshot = snap;
     S.info = snap?.info ?? null;
     S.time = snap?.time ?? null;
-    S.markers = snap?.markers ?? [];
     S.team = snap?.team ?? null;
     S.teamLog = snap?.teamLog ?? null;
-    S.events = snap?.events ?? null;
     S.chat = snap?.chat ?? [];
     S.devices = snap?.devices ?? [];
     S.pins = snap?.pins ?? [];
     renderInfo();
     if (!S.preview) loadMap(snap?.mapMeta ?? null);
-    renderEventChips();
     api('/api/pop').then(p => { S.pop = p; renderSparkline(); }).catch(() => {});
     bus.emit('reset');
 }
@@ -846,7 +747,6 @@ function connect() {
             case 'fallback': if (S.snapshot) S.snapshot.fallback = msg.fallback; bus.emit('fallback'); break;
             case 'watch': bus.emit('watch'); break;
             case 'time': S.time = msg.time; tickClock(); bus.emit('time'); break;
-            case 'markers': S.markers = msg.markers; renderMapMarkers(); bus.emit('markers'); break;
             case 'team':
                 S.team = msg.team;
                 S.teamLog = msg.teamLog;
@@ -854,8 +754,6 @@ function connect() {
                 renderDeathMarkers();
                 bus.emit('team');
                 break;
-            case 'events': S.events = msg.events; renderEventChips(); bus.emit('events'); break;
-            case 'sales': bus.emit('sales', msg.sales); break;
             case 'chat': S.chat = msg.chat; bus.emit('chat'); break;
             case 'chatMessage': S.chat.push(msg.message); bus.emit('chat', msg.message); break;
             case 'devices': S.devices = msg.devices; bus.emit('devices'); break;

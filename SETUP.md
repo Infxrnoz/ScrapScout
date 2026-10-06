@@ -103,8 +103,9 @@ npm start
 - Zip version: **"Node.js is not installed"** — install it from nodejs.org and run `setup.bat` again.
   **Port 3000 already in use** — another copy is running; close its black window (or run `stop.bat`).
 - **Discord bot status says to turn on Message Content Intent** — Developer Portal → your app → Bot → switch it on, then Save settings in the app again.
-- **No shops or cargo/heli timers** — Facepunch removed shops and map events from Rust+ on 6 Aug 2026.
-  No companion app can see them; the app will pick them up again if Facepunch brings them back.
+- **No shops, events or their commands** — Facepunch removed shops (vending machines) and map events (heli, cargo, Chinook,
+  crates, explosions, travelling vendor, oil rigs, airdrops) from Rust+ on 6 Aug 2026. No companion app can see them, so
+  RustScout removed those features. They come back if Facepunch brings the data back.
 - **Heatmaps say "custom map"** — that server's map isn't on RustMaps, so there's no heat data for it.
 
 ## Keep these private

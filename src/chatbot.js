@@ -2,7 +2,6 @@ const ITEMS = require('../data/items.json');
 const GAME = require('../data/game.json');
 const RAID = require('../data/raid.json');
 const { gridOf } = require('./geo');
-const { EVENT_NAMES } = require('./trackers');
 
 const dur = ms => {
     const s = Math.max(0, Math.round(ms / 1000));
@@ -36,8 +35,6 @@ const NO_TEAM = 'Team info not loaded yet';
 
 const name = id => ITEMS[id]?.n ?? id;
 
-const NO_MARKERS = 'Facepunch removed shops/events from Rust+ (6 Aug 2026)';
-const markersGone = markers => !markers.some(m => m.type !== 1);
 
 const COMMANDS = {
     help: () => `Commands: ${Object.keys(COMMANDS).filter(c => c !== 'help').join(' ')}`,
@@ -62,41 +59,6 @@ const COMMANDS = {
         if (!team?.members?.length) return NO_TEAM;
         const off = (team?.members || []).filter(m => !m.isOnline).map(m => m.name);
         return off.length ? `Offline (${off.length}): ${off.join(', ')}` : 'Everyone is online';
-    },
-
-    events: ({ events, markers }) => {
-        if (markersGone(markers)) return NO_MARKERS;
-        const snap = events.snapshot();
-        const active = snap.active.filter(e => e.type !== 'explosion').map(e => `${EVENT_NAMES[e.type]} @ ${e.where} (${dur(Date.now() - e.since)})`);
-        return active.length ? active.join(' | ') : 'No events active';
-    },
-
-    cargo: ctx => eventStatus(ctx, 'cargo'),
-    heli: ctx => eventStatus(ctx, 'heli'),
-    chinook: ctx => eventStatus(ctx, 'ch47'),
-    vendor: ctx => eventStatus(ctx, 'vendor'),
-
-    crate: ({ events, markers }) => {
-        if (markersGone(markers)) return NO_MARKERS;
-        const crates = events.snapshot().active.filter(e => e.type === 'crate');
-        if (!crates.length) return 'No locked crates on the map';
-        const at = {};
-        for (const c of crates) at[c.where || '?'] = (at[c.where || '?'] || 0) + 1;
-        const newest = Math.max(...crates.map(c => c.since));
-        return `Locked Crates: ${crates.length} on the map: ${Object.entries(at).map(([w, n]) => `${n} at ${w}`).join(', ')}; newest arrived ${dur(Date.now() - newest)} ago`;
-    },
-
-    oil: ({ events }) => `${events.rig('smallRig', 'Oil Rig')} | ${events.rig('largeRig', 'Large Oil Rig')}`,
-    small: ({ events }) => events.rig('smallRig', 'Oil Rig'),
-    large: ({ events }) => events.rig('largeRig', 'Large Oil Rig'),
-
-    airdrop: ({ events, markers }) => {
-        if (markersGone(markers)) return NO_MARKERS;
-        const snap = events.snapshot();
-        const live = snap.active.find(e => e.type === 'plane');
-        if (live) return `Airdrop plane is over the map${live.from ? `, came in from the ${live.from}` : ''} (${dur(Date.now() - live.since)} ago)`;
-        const last = snap.last.plane;
-        return last?.spawn ? `No airdrop plane right now. Last one came ${dur(Date.now() - last.spawn)} ago` : 'No airdrop seen yet';
     },
 
     craft: (ctx, args) => {
@@ -164,29 +126,6 @@ const COMMANDS = {
         return `${n}x ${t.name}: ${opts.slice(0, 4).map(([k, q2, s]) => `${q2} ${RAID.tools[k].name.replace('Timed Explosive Charge', 'C4').replace('Explosive 5.56 Rifle Ammo', 'Explo')} (${s})`).join(', ')}`;
     },
 
-    shop: ({ markers, mapMeta }, args) => {
-        const q = args.join(' ');
-        const id = findItem(q);
-        if (!id) return `Unknown item "${q}"`;
-        if (markersGone(markers)) return NO_MARKERS;
-        const offers = [];
-        for (const vm of markers.filter(m => m.type === 3)) {
-            for (const o of vm.sellOrders || []) {
-                if (String(o.itemId) === id && o.amountInStock > 0) offers.push({ vm, o, unit: o.costPerItem / o.quantity });
-            }
-        }
-        if (!offers.length) return `Nobody sells ${name(id)} right now`;
-        offers.sort((a, b) => a.unit - b.unit);
-        return `${name(id)}: ` + offers.slice(0, 3).map(({ vm, o }) =>
-            `${o.quantity} for ${o.costPerItem} ${name(o.currencyId)} @ ${mapMeta ? gridOf(vm.x, vm.y, mapMeta.mapSize) : '?'}`).join(' | ');
-    },
-
-    sulfur: ({ tracker, markers }) => {
-        if (markersGone(markers)) return NO_MARKERS;
-        const top = tracker.targets(6).filter(t => t.sulfurCollected > 0).slice(0, 3);
-        return top.length ? 'Sulfur shops (6h): ' + top.map(t => `${t.name || 'shop'} ${t.sulfurCollected}`).join(' | ') : 'No sulfur sales tracked in 6h';
-    },
-
     upkeep: ({ devices }) => {
         const tcs = Object.values(devices.list).filter(d => d.type === 'monitor' && d.hasProtection);
         if (!tcs.length) return 'No TC storage monitors paired';
@@ -216,16 +155,6 @@ function findStructure(q) {
     return GAME.decay.find(d => n(d) === q) || GAME.decay.find(d => n(d).startsWith(q)) || GAME.decay.find(d => n(d).includes(q));
 }
 const decayPins = pins => (pins?.list || []).filter(p => p.kind === 'decay').sort((a, b) => a.end - b.end);
-
-function eventStatus({ events, markers }, type) {
-    if (markersGone(markers)) return NO_MARKERS;
-    const snap = events.snapshot();
-    const live = snap.active.find(e => e.type === type);
-    if (live) return `${EVENT_NAMES[type]} is up at ${live.where} (${dur(Date.now() - live.since)})`;
-    const last = snap.last[type];
-    if (last?.despawn) return `${EVENT_NAMES[type]} not up. Last left ${dur(Date.now() - last.despawn)} ago`;
-    return `${EVENT_NAMES[type]} not seen yet`;
-}
 
 async function handle(text, prefix, ctx) {
     if (!text.startsWith(prefix)) return null;

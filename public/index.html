@@ -13,7 +13,6 @@
 <body>
 <header class="topbar">
     <div class="brand"><span class="mark"></span>RUST<em>SCOUT</em></div>
-    <div id="event-chips" class="chips"></div>
     <div class="spacer"></div>
     <div class="pill" id="server-pill">
         <i class="dot"></i><span id="server-name">No server</span><b id="server-pop"></b>
@@ -32,12 +31,11 @@
     <nav class="rail">
         <button data-panel="browse" data-tip="Server browser"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm6.9 6h-3a15 15 0 0 0-1.3-3.9A8 8 0 0 1 18.9 8zM12 4c.8 1.1 1.5 2.5 1.9 4h-3.8c.4-1.5 1.1-2.9 1.9-4zM4.3 14a8 8 0 0 1 0-4h3.4a17 17 0 0 0 0 4H4.3zm.8 2h3a15 15 0 0 0 1.3 3.9A8 8 0 0 1 5.1 16zm3-8h-3a8 8 0 0 1 4.3-3.9A15 15 0 0 0 8.1 8zM12 20c-.8-1.1-1.5-2.5-1.9-4h3.8c-.4 1.5-1.1 2.9-1.9 4zm2.3-6H9.7a15 15 0 0 1 0-4h4.6a15 15 0 0 1 0 4zm.3 5.9A15 15 0 0 0 15.9 16h3a8 8 0 0 1-4.3 3.9zm1.7-5.9a17 17 0 0 0 0-4h3.4a8 8 0 0 1 0 4h-3.4z"/></svg></button>
         <div class="rail-sep"></div>
-        <button data-panel="shops" data-tip="Shops"><svg viewBox="0 0 24 24"><path d="M4 7h16l-1 4H5L4 7zm1 6h14v7H5v-7zm4 2v3h6v-3H9zM6 3h12l2 3H4l2-3z"/></svg></button>
         <button data-panel="raid" data-tip="Raiding"><svg viewBox="0 0 24 24"><path d="M12 2c1 4 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-6 1-9z"/></svg></button>
         <button data-panel="team" data-tip="Team"><svg viewBox="0 0 24 24"><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm8 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM1 20c0-4 4-6 8-6s8 2 8 6H1zm17 0c0-2-1-4-3-5 4 0 8 1 8 5h-5z"/></svg></button>
         <button data-panel="threats" data-tip="Threats"><svg viewBox="0 0 24 24"><path d="M12 2a8 8 0 0 0-8 8c0 3 1.5 5 3 6v3h2v-2h2v2h2v-2h2v2h2v-3c1.5-1 3-3 3-6a8 8 0 0 0-8-8zm-3 7a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm6 0a2 2 0 1 1 0 4 2 2 0 0 1 0-4z"/></svg></button>
         <button data-panel="tracked" data-tip="Tracked players"><svg viewBox="0 0 24 24"><path d="M11 2v3.1A7 7 0 0 0 5.1 11H2v2h3.1a7 7 0 0 0 5.9 5.9V22h2v-3.1a7 7 0 0 0 5.9-5.9H22v-2h-3.1A7 7 0 0 0 13 5.1V2h-2zm1 5a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 3a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg></button>
-        <button data-panel="events" data-tip="Events & alerts"><svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7v4l-2 3v1h18v-1l-2-3V9a7 7 0 0 0-7-7zm-2 17a2 2 0 0 0 4 0h-4z"/></svg></button>
+        <button data-panel="events" data-tip="Alerts & map layers"><svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7v4l-2 3v1h18v-1l-2-3V9a7 7 0 0 0-7-7zm-2 17a2 2 0 0 0 4 0h-4z"/></svg></button>
         <button data-panel="devices" data-tip="Smart devices"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg></button>
         <button data-panel="chat" data-tip="Team chat & bot"><svg viewBox="0 0 24 24"><path d="M3 4h18v12H8l-5 4V4zm4 5v2h2V9H7zm4 0v2h2V9h-2zm4 0v2h2V9h-2z"/></svg></button>
         <div class="rail-sep"></div>
@@ -85,29 +83,7 @@
             <div id="br-lookup-results" class="list" style="margin-top:6px"></div>
         </section>
 
-        <section data-panel="shops">
-            <h2>Shops</h2>
-            <div class="stat-row" id="shop-stats"></div>
-            <input id="shop-search" type="search" placeholder="Search item… (sulfur, ak, hqm)">
-            <label class="check"><input type="checkbox" id="shop-instock" checked> In stock only</label>
-            <div id="shop-results" class="list"></div>
-            <h3>Recent Sales</h3>
-            <p class="hint">Detected from stock drops between polls.</p>
-            <div id="sales-feed" class="list"></div>
-        </section>
-
         <section data-panel="raid">
-            <div class="row-between"><h2>Potential Targets</h2>
-                <select id="target-hours">
-                    <option value="1">1h</option>
-                    <option value="6" selected>6h</option>
-                    <option value="24">24h</option>
-                    <option value="0">wipe</option>
-                </select>
-            </div>
-            <p class="hint">Shops that took sulfur or sulfur ore as payment and still have an active vending machine — the owner collects the currency, so they're sitting on it.</p>
-            <div id="targets" class="list"></div>
-
             <h2>Raid Cost Calculator</h2>
             <div class="seg" id="raid-style">
                 <button data-style="meta">Meta</button>
@@ -152,12 +128,8 @@
         </section>
 
         <section data-panel="events">
-            <h2>Event Timers</h2>
-            <div id="event-timers" class="timers"></div>
-            <h3>Alerts</h3>
+            <h2>Alerts</h2>
             <div id="alert-log" class="list log"></div>
-            <h3>Event log</h3>
-            <div id="event-log" class="list log"></div>
             <h3>Map layers</h3>
             <div id="layer-toggles" class="two-col"></div>
         </section>
@@ -402,12 +374,14 @@
             <h2>Alerts</h2>
             <label class="check"><input type="checkbox" id="set-desktop"> Desktop notifications when this tab is in the background</label>
             <div class="row">
-                <label class="field">Sulfur sale alert at<input id="set-sulfur" type="number" min="0" class="num"></label>
-                <label class="field">TC upkeep alert (hours)<input id="set-upkeep" type="number" min="0" step="0.5" class="num"></label>
+                                <label class="field">TC upkeep alert (hours)<input id="set-upkeep" type="number" min="0" step="0.5" class="num"></label>
                 <label class="field">Decay timer alert (minutes before)<input id="set-decay" type="number" min="1" step="5" class="num"></label>
             </div>
             <div id="alert-matrix" class="matrix"></div>
             <button class="btn" id="settings-save" style="margin-top:10px;width:100%">Save settings</button>
+
+            <h2>Removed by Facepunch</h2>
+            <p class="hint">On <b>6 August 2026</b> Facepunch removed shops (vending machines) and map events (patrol heli, cargo ship, Chinook, locked crates, explosions, travelling vendor, oil rigs and airdrops) from Rust+. No companion app can see them anymore, so RustScout no longer has the Shops tab, sulfur sale tracking, raid targets, event timers, event alerts, or the chat commands for them (<code>!events</code> <code>!cargo</code> <code>!heli</code> <code>!chinook</code> <code>!vendor</code> <code>!crate</code> <code>!oil</code> <code>!small</code> <code>!large</code> <code>!airdrop</code> <code>!shop</code> <code>!sulfur</code>). If Facepunch brings that data back, those features will come back too.</p>
         </section>
     </aside>
     <button class="panel-toggle" id="panel-toggle" title="Toggle panel"></button>
@@ -436,7 +410,6 @@
 <script src="/js/appearance.js"></script>
 <script src="/js/resources.js"></script>
 <script src="/js/browse.js"></script>
-<script src="/js/shops.js"></script>
 <script src="/js/raid.js"></script>
 <script src="/js/team.js"></script>
 <script src="/js/threats.js"></script>

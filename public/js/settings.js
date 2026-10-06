@@ -45,7 +45,6 @@
         $('#set-rustmaps').value = settings.rustMapsKey;
         $('#set-bot').checked = settings.bot.enabled;
         $('#set-prefix').value = settings.bot.prefix;
-        $('#set-sulfur').value = settings.sulfurSaleAlertMin;
         $('#set-upkeep').value = settings.upkeepAlertHours;
         $('#set-decay').value = settings.decayAlertMinutes;
         $('#set-desktop').checked = store.get('desktopNotify', !!window.desktop);
@@ -74,7 +73,7 @@
                         enabled: $('#set-dbot').checked, token: $('#set-dbot-token').value.trim(), channelId: $('#set-dbot-channel').value.trim(),
                         prefix: $('#set-dbot-prefix').value.trim() || '!', allowSay: $('#set-dbot-say').checked
                     },
-                    sulfurSaleAlertMin: $('#set-sulfur').value, upkeepAlertHours: $('#set-upkeep').value, decayAlertMinutes: $('#set-decay').value, alerts
+                    upkeepAlertHours: $('#set-upkeep').value, decayAlertMinutes: $('#set-decay').value, alerts
                 }
             });
             toast({ kind: 'teamOnline', label: 'Saved', text: 'Settings updated' });

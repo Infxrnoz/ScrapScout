@@ -2,34 +2,6 @@
 
 (() => {
 
-    async function loadTargets() {
-        try { S.targets = await api(`/api/targets?hours=${$('#target-hours').value}`); } catch { S.targets = []; }
-        S.targetIds = new Set(S.targets.filter(t => t.sulfurCollected > 0 || t.sulfurSold > 0).map(t => t.id));
-        renderTargets();
-        renderMapMarkers();
-    }
-
-    function renderTargets() {
-        const list = S.targets.slice(0, 15);
-        const max = Math.max(1, ...list.map(t => t.sulfurCollected));
-        $('#targets').innerHTML = list.map((t, i) => {
-            const tags = Object.entries(t.tags).filter(([, v]) => v > 0).map(([k]) => `<span class="tag">${k}</span>`).join('');
-            return `<div class="item target" data-id="${t.id}" data-x="${t.x}" data-y="${t.y}">
-                <span class="rank">${i + 1}</span>
-                <div class="grow"><div class="title">${esc(t.name || `Vending ${i + 1}`)}</div>
-                <div class="sub">${t.sulfurCollected ? `<b class="flame">${fmt(t.sulfurCollected)}</b> sulfur in` : `${t.trades} trades`}${t.sulfurSold ? ` · sold ${fmt(t.sulfurSold)}` : ''} ${tags}</div>
-                <div class="bar"><i style="width:${t.sulfurCollected / max * 100}%"></i></div></div>
-                <div class="right"><div class="grid">${gridOf(t.x, t.y)}</div><div class="sub">${ago(t.lastSale)}</div></div>
-            </div>`;
-        }).join('') || empty(markerDataMissing() ? NO_MARKER_DATA : 'No sales tracked in this window yet. Keep the app running — it learns from every poll.');
-        $('#targets').querySelectorAll('.item').forEach(el => el.onclick = () => focusVending(el.dataset.id, +el.dataset.x, +el.dataset.y));
-    }
-
-    $('#target-hours').onchange = loadTargets;
-    bus.on('reset', loadTargets);
-    bus.on('sales', loadTargets);
-    setInterval(() => S.snapshot && loadTargets(), 30000);
-
     const TOOL_ORDER = ['rocket', 'c4', 'satchel', 'explo', 'beancan', 'hv', 'f1'];
     const DEFAULT_TOOLS = ['rocket', 'c4', 'satchel', 'explo', 'beancan'];
     const META_PREF = {
