@@ -14,8 +14,24 @@
         theme: 'rust', ...THEMES.rust, rainbow: false,
         bg: null, bgUrl: '', dim: 0.55, blur: 0,
         opacity: 1, glass: 12, glow: 1, radius: 6,
-        font: 'Inter', heading: 'Rajdhani'
+        font: 'Inter', heading: 'Rajdhani',
+        scale: 100, panelW: 350, ui: {}
     };
+    const LAYOUT = [
+        ['Top bar', [['brand', 'Logo', '.topbar .brand'], ['server', 'Server name and pop', '#server-pill'], ['spark', 'Pop graph', '#pop-spark'],
+            ['wipe', 'Wipe age', '#wipe-age'], ['clock', 'Game clock and day/night', '.clock-pill'], ['conn', 'Connection status', '#conn'], ['backend', 'Backend dot', '#backend']]],
+        ['Map', [['zoom', 'Zoom buttons', '.leaflet-control-zoom'], ['readout', 'Grid under the cursor', '#cursor-readout'],
+            ['resfilter', 'Resource filters', '#heat-control'], ['mapempty', 'Help text on an empty map', '#map-empty']]],
+        ['Panels', [['hints', 'Help text under headings', '.panel .hint'], ['h2bar', 'Heading markers', '.panel h2::before'],
+            ['seps', 'Tab dividers', '.rail-sep'], ['arrow', 'Collapse arrow', '.panel-toggle']]],
+        ['Style', [['borders', 'Borders', null, ':root { --line: transparent !important; --line-2: transparent !important; }'],
+            ['shadows', 'Shadows and glow', null, '*, *::before, *::after { box-shadow: none !important; text-shadow: none !important; }'],
+            ['anim', 'Animations', null, '*, *::before, *::after { animation: none !important; transition: none !important; }'],
+            ['caps', 'Uppercase headings', null, '.panel h2, .panel h3, .tc-name, .tc-kicker { text-transform: none !important; letter-spacing: .02em !important; }'],
+            ['scroll', 'Scrollbars', null, '* { scrollbar-width: none !important; }'],
+            ['compact', 'Compact spacing', null, '.panel { padding: 2px 10px 12px !important; } .panel h2 { margin: 8px 0 4px !important; } .item, .detail-card, .disp, .threat-card, .tile { padding: 6px 8px !important; }', false]]]
+    ];
+    const isOn = (k, def = true) => A.ui[k] ?? def;
     const BASE = { bg: [11, 11, 12], 'bg-2': [17, 17, 19], panel: [20, 20, 22], 'panel-2': [27, 27, 30], 'panel-3': [35, 35, 39] };
 
     let A = { ...DEFAULT };
@@ -81,6 +97,34 @@
             rainbowTimer = setInterval(() => { h = (h + 2) % 360; setAccent(hsl2hex(h, 0.85, 0.55), hsl2hex((h + 40) % 360, 0.9, 0.65)); }, 60);
         }
         background();
+        layoutCss();
+    }
+
+    function layoutCss() {
+        let css = '';
+        for (const [, items] of LAYOUT) for (const [k, , sel, offCss, def = true] of items) {
+            const on = isOn(k, def);
+            if (def === false) { if (on) css += offCss; continue; }
+            if (!on) css += sel ? `${sel} { display: none !important; }` : offCss;
+        }
+        for (const b of document.querySelectorAll('.rail button[data-panel]')) {
+            if (b.dataset.panel !== 'settings' && A.ui[`tab-${b.dataset.panel}`] === false) css += `.rail button[data-panel="${b.dataset.panel}"] { display: none !important; }`;
+        }
+        if (A.scale !== 100) css += `.panel > section, .topbar > * { zoom: ${A.scale / 100}; }`;
+        if (A.panelW !== 350) css += `.panel:not(.wide):not(.collapsed) { width: ${A.panelW}px; } .panel:not(.wide):not(.collapsed) + .panel-toggle { left: ${A.panelW + 50}px; }`;
+        let tag = document.getElementById('ap-layout-css');
+        if (!tag) { tag = document.createElement('style'); tag.id = 'ap-layout-css'; document.head.appendChild(tag); }
+        tag.textContent = css;
+    }
+
+    function renderLayout() {
+        const box = q('#ap-layout');
+        if (!box) return;
+        const tabs = [...document.querySelectorAll('.rail button[data-panel]')].filter(b => b.dataset.panel !== 'settings').map(b => [`tab-${b.dataset.panel}`, b.dataset.tip || b.dataset.panel]);
+        const groups = [...LAYOUT.map(([t, items]) => [t, items.map(([k, label, , , def = true]) => [k, label, def])]), ['Tabs', tabs.map(([k, l]) => [k, l, true])]];
+        box.innerHTML = groups.map(([title, items]) => `<h3>${title}</h3><div class="ap-toggles">${items.map(([k, label, def]) =>
+            `<label class="toggle"><input type="checkbox" data-ui="${k}" ${isOn(k, def) ? 'checked' : ''}><i></i>${esc(label)}</label>`).join('')}</div>`).join('');
+        for (const cb of box.querySelectorAll('[data-ui]')) cb.onchange = () => set({ ui: { ...A.ui, [cb.dataset.ui]: cb.checked } });
     }
 
     let saveTimer = null;
@@ -93,7 +137,8 @@
     const q = s => document.querySelector(s);
     const SLIDERS = {
         dim: v => `${Math.round(v * 100)}%`, blur: v => `${v}px`, opacity: v => `${Math.round(v * 100)}%`,
-        glass: v => `${v}px`, glow: v => `${Math.round(v * 100)}%`, radius: v => `${v}px`
+        glass: v => `${v}px`, glow: v => `${Math.round(v * 100)}%`, radius: v => `${v}px`,
+        scale: v => `${v}%`, panelW: v => `${v}px`
     };
 
     function fill() {
@@ -104,6 +149,7 @@
         q('#ap-bg-url').value = A.bgUrl || '';
         q('#ap-bg-status').textContent = A.bg === 'file' ? `Using your ${A.bgKind || 'image'}` : A.bg === 'url' ? 'Using the link' : 'No background';
         for (const k in SLIDERS) { q(`#ap-${k}`).value = A[k]; q(`#ap-${k}-v`).textContent = SLIDERS[k](A[k]); }
+        if (!q('#ap-layout').contains(document.activeElement)) renderLayout();
     }
 
     function wire() {

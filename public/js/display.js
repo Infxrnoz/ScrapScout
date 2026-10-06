@@ -17,51 +17,64 @@
         const [cw, ch, chz, cfix] = d.current;
         const res = [...new Map(d.modes.map(([w, h]) => [`${w}x${h}`, [w, h]])).values()].sort((a, b) => b[0] * b[1] - a[0] * a[1]);
         const native = res[0];
-        const rates = (w, h) => d.modes.filter(m => m[0] === w && m[1] === h).map(m => m[2]).sort((a, b) => b - a);
-        const presets = PRESETS.filter(([w, h]) => rates(w, h).length);
-        return `<div class="detail-card disp" data-i="${i}">
-            <div class="row-between"><b>${esc(d.monitor)}${d.primary ? ' <span class="tag">main</span>' : ''}</b><span class="muted small">${cw}×${ch} @ ${chz} Hz${cfix === 2 ? ' · stretched' : ''}</span></div>
-            <div class="row" style="margin-top:8px">
-                <label class="field grow">Resolution<select data-k="res">${res.map(([w, h]) => `<option value="${w}x${h}" ${w === cw && h === ch ? 'selected' : ''}>${label(w, h)}${w === native[0] && h === native[1] ? ' · native' : ''}</option>`).join('')}</select></label>
-                <label class="field">Refresh<select data-k="hz"></select></label>
-            </div>
-            <label class="field" data-scale>Scaling<select data-k="fixed">
-                <option value="2" ${cfix === 2 ? 'selected' : ''}>Stretched (fill the screen)</option>
-                <option value="1" ${cfix === 1 ? 'selected' : ''}>Black bars (keep shape)</option>
-                <option value="0" ${cfix === 0 ? 'selected' : ''}>Driver default</option>
-            </select></label>
-            ${presets.length ? `<div class="hint">Stretched 4:3:</div><div class="seg">${presets.map(([w, h]) => `<button data-preset="${w}x${h}">${w}×${h}</button>`).join('')}<button data-preset="${native[0]}x${native[1]}" data-native>Native</button></div>` : ''}
-            ${d.hdr === null ? '' : `<label class="check"><input type="checkbox" data-k="hdr" ${d.hdr ? 'checked' : ''}> HDR</label>`}
-            <button class="btn small" data-apply style="margin-top:8px;width:100%">Apply</button>
+        const has = (w, h) => d.modes.some(m => m[0] === w && m[1] === h);
+        const presets = PRESETS.filter(([w, h]) => has(w, h));
+        return `<div class="disp" data-i="${i}">
+            <div class="disp-head"><b>${esc(d.monitor)}</b>${d.primary ? '<span class="tag">main</span>' : ''}<span class="muted small">${cw}×${ch} · ${chz} Hz${cfix === 2 ? ' · stretched' : ''}</span></div>
+            <label class="field">Resolution<select data-k="res">${res.map(([w, h]) => `<option value="${w}x${h}" ${w === cw && h === ch ? 'selected' : ''}>${label(w, h)}${w === native[0] && h === native[1] ? ' · native' : ''}</option>`).join('')}</select></label>
+            <div class="disp-custom"><span class="muted small">Custom</span><input data-k="cw" type="number" min="640" max="7680" placeholder="width"><span>×</span><input data-k="ch" type="number" min="480" max="4320" placeholder="height"></div>
+            <div class="hint">Refresh rate</div>
+            <div class="disp-chips" data-k="hz"></div>
+            ${presets.length ? `<div class="hint">Stretched 4:3</div><div class="disp-chips">${presets.map(([w, h]) => `<button data-preset="${w}x${h}">${w}×${h}</button>`).join('')}<button data-preset="${native[0]}x${native[1]}" data-native>Native</button></div>` : ''}
+            <div data-scale><div class="hint">Scaling</div><div class="disp-chips" data-k="fixed">
+                <button data-v="2">Stretched</button><button data-v="1">Black bars</button><button data-v="0">Driver</button></div></div>
+            ${d.hdr === null ? '' : `<label class="toggle"><input type="checkbox" data-k="hdr" ${d.hdr ? 'checked' : ''}><i></i> HDR</label>`}
+            <button class="btn small" data-apply>Apply</button>
         </div>`;
     }
 
     function wireCard(el) {
         const d = displays[+el.dataset.i];
         const sel = k => el.querySelector(`[data-k="${k}"]`);
-        const fillRates = keepHz => {
-            const [w, h] = sel('res').value.split('x').map(Number);
+        const native = d.modes.reduce((a, m) => m[0] * m[1] > a[0] * a[1] ? m : a);
+        const allRates = [...new Set(d.modes.map(m => m[2]))].sort((a, b) => b - a);
+        let hz = d.current[2], fixed = d.current[3] || 2;
+        const chosen = () => {
+            const w = Number(sel('cw').value), h = Number(sel('ch').value);
+            return w && h ? [w, h, true] : [...sel('res').value.split('x').map(Number), false];
+        };
+        const pick = (box, v) => box.querySelectorAll('button').forEach(b => b.classList.toggle('active', Number(b.dataset.v) === v));
+        const refresh = () => {
+            const [w, h] = chosen();
             const rs = d.modes.filter(m => m[0] === w && m[1] === h).map(m => m[2]).sort((a, b) => b - a);
-            sel('hz').innerHTML = rs.map(r => `<option ${r === keepHz ? 'selected' : ''}>${r}</option>`).join('');
-            const native = d.modes.reduce((a, m) => m[0] * m[1] > a[0] * a[1] ? m : a);
+            const list = rs.length ? rs : allRates;
+            if (!list.includes(hz)) hz = list[0];
+            sel('hz').innerHTML = list.map(r => `<button data-v="${r}">${r} Hz</button>`).join('');
+            sel('hz').querySelectorAll('button').forEach(b => b.onclick = () => { hz = Number(b.dataset.v); pick(sel('hz'), hz); });
+            pick(sel('hz'), hz);
             const same = Math.abs(aspect(w, h) - aspect(native[0], native[1])) < 0.01;
             el.querySelector('[data-scale]').hidden = same;
-            if (!same && sel('fixed').value === '0') sel('fixed').value = '2';
+            pick(sel('fixed'), fixed);
         };
-        sel('res').onchange = () => fillRates(Number(sel('hz').value));
-        fillRates(d.current[2]);
-        for (const b of el.querySelectorAll('[data-preset]')) b.onclick = () => {
-            sel('res').value = b.dataset.preset;
-            fillRates(Math.max(...d.modes.filter(m => `${m[0]}x${m[1]}` === b.dataset.preset).map(m => m[2])));
-            if (!b.hasAttribute('data-native')) sel('fixed').value = '2';
-            apply();
-        };
+        sel('fixed').querySelectorAll('button').forEach(b => b.onclick = () => { fixed = Number(b.dataset.v); pick(sel('fixed'), fixed); });
+        sel('res').onchange = () => { sel('cw').value = sel('ch').value = ''; refresh(); };
+        sel('cw').oninput = sel('ch').oninput = refresh;
+        refresh();
         const apply = async () => {
-            const [w, h] = sel('res').value.split('x').map(Number);
-            const r = await window.desktop.displaySet({ device: d.device, w, h, hz: Number(sel('hz').value), fixed: el.querySelector('[data-scale]').hidden ? -1 : Number(sel('fixed').value) });
-            if (!r.ok) return status(r.error || 'Couldn’t change the display', true);
-            if (r.scaling === false) status('Resolution changed, but your graphics driver ignored the stretch setting. Turn on GPU scaling in the NVIDIA/AMD control panel.');
+            const [w, h, custom] = chosen();
+            if (!w || !h) return status('Enter both a width and a height.', true);
+            const r = await window.desktop.displaySet({ device: d.device, w, h, hz, fixed: el.querySelector('[data-scale]').hidden ? -1 : fixed });
+            if (!r.ok) return status(custom ? `Your graphics driver doesn't offer ${w}×${h} at ${hz} Hz. Add it as a custom resolution in NVIDIA Control Panel (Change resolution → Customize) or AMD Software first.` : (r.error || 'Couldn’t change the display'), true);
+            status(r.scaling === false ? 'Resolution changed, but your graphics driver ignored the stretch setting. Turn on GPU scaling in the NVIDIA/AMD control panel.' : '');
             confirmKeep();
+        };
+        for (const b of el.querySelectorAll('[data-preset]')) b.onclick = () => {
+            sel('cw').value = sel('ch').value = '';
+            sel('res').value = b.dataset.preset;
+            hz = Math.max(...d.modes.filter(m => `${m[0]}x${m[1]}` === b.dataset.preset).map(m => m[2]));
+            if (!b.hasAttribute('data-native')) fixed = 2;
+            refresh();
+            apply();
         };
         el.querySelector('[data-apply]').onclick = apply;
         const hdr = sel('hdr');
