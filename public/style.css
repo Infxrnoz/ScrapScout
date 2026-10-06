@@ -601,3 +601,6 @@ input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color:
 .tc-stats span { display: block; font: 600 10px var(--display); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
 .tc-stats b { font: 600 13px ui-monospace, Consolas, monospace; }
 .tc-foot { padding-top: 8px; border-top: 1px solid var(--line); font-size: 11px; color: var(--muted); }
+
+.disp [hidden] { display: none !important; }
+.disp .seg { margin-bottom: 8px; }

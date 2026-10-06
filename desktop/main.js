@@ -298,6 +298,43 @@ ipcMain.handle('color-get', async () => {
 });
 ipcMain.handle('color-set', (e, patch) => setColor(patch || {}));
 
+const DEVICE = /^\\\\\.\\DISPLAY\d{1,2}$/;
+let displayRevert = null;
+const modeLine = (cmd, m) => `${cmd} ${m.device} ${m.w | 0} ${m.h | 0} ${m.hz | 0} ${Number.isInteger(m.fixed) ? m.fixed : -1}`;
+function clearDisplayRevert() { clearTimeout(displayRevert?.timer); displayRevert = null; }
+async function revertDisplay() {
+    const prev = displayRevert?.prev;
+    clearDisplayRevert();
+    if (!prev) return { ok: true };
+    const r = await gammaLine(modeLine('setmode', prev));
+    win?.webContents.send('display-reverted');
+    return r;
+}
+ipcMain.handle('display-get', () => isPro() ? gammaLine('displays') : { ok: false, pro: false });
+ipcMain.handle('display-set', async (e, m) => {
+    if (!isPro()) { askPro(); return { ok: false, pro: false }; }
+    if (!m || !DEVICE.test(m.device)) return { ok: false, error: 'Unknown display' };
+    const list = await gammaLine('displays');
+    const d = list?.displays?.find(x => x.device === m.device);
+    if (!d) return { ok: false, error: 'Unknown display' };
+    const test = await gammaLine(modeLine('testmode', m));
+    if (!test?.ok) return { ok: false, error: 'This display doesn’t support that mode.' };
+    if (displayRevert) await revertDisplay();
+    const [w, h, hz, fixed] = d.current;
+    const r = await gammaLine(modeLine('setmode', m));
+    if (!r?.ok) return { ok: false, error: 'Windows refused that mode.' };
+    displayRevert = { prev: { device: m.device, w, h, hz, fixed }, timer: setTimeout(revertDisplay, 15000) };
+    dlog(`display ${m.device}: ${w}x${h}@${hz} -> ${m.w}x${m.h}@${m.hz} fixed=${m.fixed}`);
+    return { ok: true, revertIn: 15, scaling: r.scaling !== false };
+});
+ipcMain.handle('display-keep', () => { clearDisplayRevert(); return { ok: true }; });
+ipcMain.handle('display-revert', () => revertDisplay());
+ipcMain.handle('display-hdr', (e, device, on) => {
+    if (!isPro()) { askPro(); return { ok: false, pro: false }; }
+    if (!DEVICE.test(device)) return { ok: false, error: 'Unknown display' };
+    return gammaLine(`hdr ${device} ${on ? 1 : 0}`);
+});
+
 function resetGamma() {
     if (!gammaProc) return;
     try { gammaProc.stdin.write('quit\n'); gammaProc.stdin.end(); } catch {  }
@@ -486,6 +523,7 @@ app.whenReady().then(async () => {
     buildTray(); 
     dlog(`started ${app.getVersion()}; hotkeys: ${JSON.stringify(KEYS)}`);
     updateOverlay();
+    screen.on('display-metrics-changed', () => updateOverlay());
     gammaLine(`color -1 100 50 50 1 0 ${settings().vibBase ?? -1}`).then(r => {
         if (r?.driverVibrance >= 0 && (!colorSettings().on || settings().vibBase == null)) saveSettings({ vibBase: r.driverVibrance });
         if (colorSettings().on && isPro()) applyColor();

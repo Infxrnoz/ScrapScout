@@ -43,6 +43,7 @@
         <button data-panel="recycle" data-tip="Recycle"><svg viewBox="0 0 24 24"><path d="m12 3 3 5h-2v3h-2V8H9l3-5zM4 17l3-5 1 2 3-2-1 3 2 1-6 1H4zm16 0h-2l-6-1 2-1-1-3 3 2 1-2 3 5z"/></svg></button>
         <button data-panel="breeder" data-tip="Plant breeder"><svg viewBox="0 0 24 24"><path d="M12 22v-9m0 0C12 7 7 4 3 5c0 5 4 8 9 8zm0 0c0-6 5-9 9-8 0 5-4 8-9 8z" stroke="currentColor" stroke-width="2" fill="none"/></svg></button>
         <button data-panel="power" data-tip="Electricity"><svg viewBox="0 0 24 24"><path d="M7 2h10v4h-2v3h3v13H6V9h3V6H7V2zm5 9-3 5h2v3l3-5h-2v-3z"/></svg></button>
+        <button data-panel="display" data-tip="Display" id="rail-display" hidden><svg viewBox="0 0 24 24"><path d="M3 4h18v12H3V4zm2 2v8h14V6H5zm4 12h6v2H9v-2z"/></svg></button>
         <div class="spacer"></div>
         <button data-panel="settings" data-tip="Servers & settings"><svg viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm9 5v-2l-2.1-.5a7 7 0 0 0-.7-1.7l1.1-1.9-1.4-1.4-1.9 1.1a7 7 0 0 0-1.7-.7L13 3h-2l-.5 2.1a7 7 0 0 0-1.7.7L6.9 4.7 5.5 6.1l1.1 1.9a7 7 0 0 0-.7 1.7L3 11v2l2.1.5c.2.6.4 1.2.7 1.7l-1.1 1.9 1.4 1.4 1.9-1.1c.5.3 1.1.5 1.7.7L11 21h2l.5-2.1c.6-.2 1.2-.4 1.7-.7l1.9 1.1 1.4-1.4-1.1-1.9c.3-.5.5-1.1.7-1.7L21 13z"/></svg></button>
     </nav>
@@ -236,6 +237,15 @@
             <h3>Crafting list</h3>
             <p class="hint">Everything in this plan (devices, panels, turbines, generators, batteries) plus any wiring parts below, broken down to raw materials.</p>
             <div id="power-bill"></div>
+        </section>
+
+        <section data-panel="display">
+            <h2>Display</h2>
+            <p class="hint">Change resolution, refresh rate and HDR for each screen. Stretched 4:3 sets a 4:3 resolution and fills the screen. After you apply, you have 15 seconds to keep it, otherwise it switches back by itself.</p>
+            <div class="pro-lock" id="disp-confirm" hidden>Keep these display settings? Switching back in <b id="disp-left">15</b>s
+                <div class="row" style="margin-top:6px"><button class="btn small" id="disp-keep">Keep</button><button class="btn small ghost" id="disp-undo">Switch back</button></div></div>
+            <p class="hint" id="disp-status"></p>
+            <div id="disp-list" class="list"></div>
         </section>
 
         <section data-panel="settings">
@@ -433,6 +443,7 @@
 <script src="/js/power.js"></script>
 <script src="/js/crosshair.js"></script>
 <script src="/js/settings.js"></script>
+<script src="/js/display.js"></script>
 <script>boot();</script>
 </body>
 </html>

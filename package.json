@@ -1,7 +1,7 @@
 {
     "name": "rustscout",
     "productName": "RustScout",
-    "version": "1.1.11",
+    "version": "1.1.12",
     "private": true,
     "description": "Free Rust+ companion for your desktop: live map, team, alerts, server browser, ore maps, raid and base tools.",
     "main": "desktop/main.js",
@@ -18,7 +18,7 @@
         "dist": "electron-builder --win nsis",
         "dist:personal": "electron-builder --win nsis -c.extraMetadata.rustscout.importOldVersion=true -c.win.artifactName=RustScout-Setup-${version}-personal.${ext}",
         "icon": "node desktop/make-icon.js",
-        "gamma": "C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe -nologo -optimize -target:exe -platform:x64 -r:System.Windows.Forms.dll -out:desktop\\gamma\\gamma.exe desktop\\gamma\\gamma.cs"
+        "gamma": "C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe -nologo -optimize -target:exe -platform:x64 -r:System.Windows.Forms.dll -out:desktop\\gamma\\gamma.exe desktop\\gamma\\gamma.cs desktop\\gamma\\display.cs"
     },
     "dependencies": {
         "@liamcottle/push-receiver": "^0.0.4",

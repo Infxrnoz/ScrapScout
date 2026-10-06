@@ -194,6 +194,8 @@ static class Gamma
         {
             var p = line.Trim().Split(' ');
             if (p[0] == "quit") break;
+            var shown = Display.Handle(p);
+            if (shown != null) { Console.WriteLine(shown); Console.Out.Flush(); continue; }
             if (p[0] == "color" && p.Length >= 7)
             {
                 vib = Num(p[1], -1, -1, 100); sat = Num(p[2], 100, 0, 200); bri = Num(p[3], 50, 0, 100);

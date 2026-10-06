@@ -12,5 +12,11 @@ contextBridge.exposeInMainWorld('desktop', {
     hotkeys: () => ipcRenderer.invoke('hotkeys'),
     getColor: () => ipcRenderer.invoke('color-get'),
     setColor: patch => ipcRenderer.invoke('color-set', patch),
-    onColor: fn => ipcRenderer.on('color-settings', (e, c) => fn(c))
+    onColor: fn => ipcRenderer.on('color-settings', (e, c) => fn(c)),
+    displayGet: () => ipcRenderer.invoke('display-get'),
+    displaySet: mode => ipcRenderer.invoke('display-set', mode),
+    displayKeep: () => ipcRenderer.invoke('display-keep'),
+    displayRevert: () => ipcRenderer.invoke('display-revert'),
+    displayHdr: (device, on) => ipcRenderer.invoke('display-hdr', device, on),
+    onDisplayReverted: fn => ipcRenderer.on('display-reverted', () => fn())
 });
