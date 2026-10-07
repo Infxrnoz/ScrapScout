@@ -74,13 +74,14 @@ function createWindow() {
     win.loadURL(base);
     win.once('ready-to-show', () => { if (!hiddenStart) win.show(); });
 
-    const external = url => /^(https?|steam):/i.test(url) && !url.startsWith(base);
+    const own = url => { try { return new URL(url).origin === new URL(base).origin; } catch { return false; } };
+    const external = url => (/^https?:\/\//i.test(url) || /^steam:\/\/connect\/[\w.:-]+$/i.test(url)) && !own(url);
     win.webContents.setWindowOpenHandler(({ url }) => {
         if (external(url)) shell.openExternal(url);
         return { action: 'deny' };
     });
     win.webContents.on('will-navigate', (e, url) => {
-        if (url.startsWith(base)) return;
+        if (own(url)) return;
         e.preventDefault();
         if (external(url)) shell.openExternal(url);
     });

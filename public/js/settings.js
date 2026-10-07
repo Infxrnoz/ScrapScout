@@ -146,7 +146,8 @@
             }
             $('#col-method').textContent = !c.on ? '' : r.ok === false ? 'Windows refused the change on this PC.'
                 : r.method === 'filter' ? 'Windows has no gamma control here (monitors disabled in Device Manager?), so gamma is approximated.'
-                : r.vibrance === 'filter' ? 'No NVIDIA driver found, so vibrance is done as extra saturation.' : '';
+                : r.vibrance === 'amd' ? 'Vibrance uses your AMD driver’s saturation.'
+                : r.vibrance === 'filter' ? 'No NVIDIA or AMD driver control found, so vibrance uses a Windows colour filter. Play Rust in borderless fullscreen for it to show.' : '';
             if (!$('#col-presets').children.length) {
                 $('#col-presets').innerHTML = Object.keys(c.presets).map(n => `<button data-preset="${esc(n)}">${esc(n)}</button>`).join('');
                 for (const b of $('#col-presets').children) b.onclick = () => sendColor({ profile: col.presets[b.dataset.preset], on: true });

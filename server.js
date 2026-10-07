@@ -1003,7 +1003,10 @@ function readSigned(token, prefix) {
         return JSON.parse(Buffer.from(m[1], 'base64url').toString('utf8'));
     } catch { return null; }
 }
-const readLicense = key => readSigned(key, 'RS1');
+const readLicense = key => {
+    const l = readSigned(key, 'RS1');
+    return l && typeof l.e === 'string' && typeof l.s === 'string' && l.m === undefined ? l : null;
+};
 const license = () => readLicense(config.licenseKey);
 const activated = () => {
     const a = readSigned(config.licenseActivation, 'RA1');
@@ -1022,6 +1025,22 @@ async function licenseServer(action, key) {
     const j = await r.json().catch(() => ({}));
     return r.ok ? j : { status: r.status, error: j.error || `Licence server answered ${r.status}` };
 }
+
+async function recheckLicense() {
+    if (!license() || !activated()) return;
+    const r = await licenseServer('activate', config.licenseKey);
+    if (r.status === 403 || r.status === 409) {
+        config.licenseActivation = '';
+        saveConfig();
+        startDiscordBot();
+        log(`RustScout Pro turned off: ${r.error}`);
+        return;
+    }
+    const a = !r.error && readSigned(r.activation, 'RA1');
+    if (a && a.m === machineId && a.k === keyId(config.licenseKey)) { config.licenseActivation = r.activation; saveConfig(); }
+}
+recheckLicense();
+setInterval(recheckLicense, 12 * 3600e3).unref();
 
 startDiscordBot();
 app.get('/api/license', (req, res) => res.json({ pro: isPro(), email: license()?.e ?? null, needsActivation: !!license() && !activated() }));

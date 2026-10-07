@@ -8,6 +8,7 @@ const detailCache = new Map();
 
 const FLAGS = { '^m': 'monthly', '^w': 'weekly', '^b': 'biweekly', '^v': 'vanilla', '^h': 'hardcore', '^s': 'softcore' };
 const REGIONS = ['EU', 'NA', 'SA', 'AS', 'AF', 'OC', 'WC', 'RU', 'CN'];
+const webUrl = s => /^https?:\/\/[^\s"'<>]+$/i.test(String(s || '').trim()) ? String(s).trim() : null;
 
 function parseKeywords(kw = '') {
     const out = { players: null, maxPlayers: null, queued: 0, wipe: null, region: null, flags: [], build: null, teamSize: null };
@@ -110,7 +111,7 @@ async function details(ip, queryPort) {
         seed: rules['world.seed'] ? +rules['world.seed'] : null,
         size: rules['world.size'] ? +rules['world.size'] : null,
         mapImage: rules.map_image_url || null,
-        header: rules.headerimage || null, url: rules.url || null, description,
+        header: webUrl(rules.headerimage), url: webUrl(rules.url), description,
         fps: rules.fps_avg ? Math.round(+rules.fps_avg) : null,
         entities: rules.ent_cnt ? +rules.ent_cnt : null,
         uptime: rules.uptime ? +rules.uptime : null,

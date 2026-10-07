@@ -16,7 +16,10 @@ async function validKey(key) {
     const m = /^RS1-([\w-]+)\.([\w-]+)$/.exec(key);
     if (!m) return false;
     const pub = await crypto.subtle.importKey('spki', unb64url(PUBLIC_KEY.replace(/=+$/, '')), { name: 'Ed25519' }, false, ['verify']);
-    return crypto.subtle.verify('Ed25519', pub, unb64url(m[2]), new TextEncoder().encode(m[1]));
+    if (!(await crypto.subtle.verify('Ed25519', pub, unb64url(m[2]), new TextEncoder().encode(m[1])))) return false;
+    let p;
+    try { p = JSON.parse(new TextDecoder().decode(unb64url(m[1]))); } catch { return false; }
+    return typeof p.e === 'string' && typeof p.s === 'string' && p.m === undefined;
 }
 
 async function activation(request, env, action) {
@@ -39,6 +42,47 @@ async function activation(request, env, action) {
     return json({ activation: `RA1-${payload}.${await sign(payload, env.LICENSE_PRIVATE_KEY)}` });
 }
 
+async function stripe(env, path) {
+    const r = await fetch(`https://api.stripe.com/v1/${path}`, { headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` } });
+    return r.ok ? r.json() : null;
+}
+
+async function keyFor(session, env) {
+    const payload = b64url(new TextEncoder().encode(JSON.stringify({ e: session.customer_details?.email || '', s: session.id, t: session.created })));
+    return `RS1-${payload}.${await sign(payload, env.LICENSE_PRIVATE_KEY)}`;
+}
+
+const ours = (session, env) => !env.PAYMENT_LINK_ID || session.payment_link === env.PAYMENT_LINK_ID;
+
+async function revoke(env, id) {
+    const rec = JSON.parse(await env.LICENSES.get(id) || 'null') || { m: null, moves: [] };
+    await env.LICENSES.put(id, JSON.stringify({ ...rec, revoked: true }));
+}
+
+const hex = bytes => [...new Uint8Array(bytes)].map(b => b.toString(16).padStart(2, '0')).join('');
+const sameText = (a, b) => a.length === b.length && [...a].reduce((d, c, i) => d | (c.charCodeAt(0) ^ b.charCodeAt(i)), 0) === 0;
+
+async function stripeWebhook(request, env) {
+    if (!env.STRIPE_WEBHOOK_SECRET) return json({ error: 'Not set up' }, 404);
+    const body = await request.text();
+    const header = request.headers.get('Stripe-Signature') || '';
+    const t = /(?:^|,)t=(\d+)/.exec(header)?.[1];
+    const sigs = [...header.matchAll(/(?:^|,)v1=([0-9a-f]{64})/g)].map(m => m[1]);
+    if (!t || Math.abs(Date.now() / 1000 - Number(t)) > 300) return json({ error: 'Bad signature' }, 400);
+    const mac = await crypto.subtle.importKey('raw', new TextEncoder().encode(env.STRIPE_WEBHOOK_SECRET), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    const expected = hex(await crypto.subtle.sign('HMAC', mac, new TextEncoder().encode(`${t}.${body}`)));
+    if (!sigs.some(s => sameText(s, expected))) return json({ error: 'Bad signature' }, 400);
+
+    const event = JSON.parse(body);
+    const obj = event.data?.object || {};
+    const lost = (event.type === 'charge.refunded' && obj.refunded) || event.type === 'charge.dispute.created';
+    if (lost && obj.payment_intent) {
+        const list = await stripe(env, `checkout/sessions?payment_intent=${encodeURIComponent(obj.payment_intent)}`);
+        for (const session of list?.data || []) await revoke(env, await sha256(await keyFor(session, env)));
+    }
+    return json({ received: true });
+}
+
 async function sign(text, pem) {
     const der = Uint8Array.from(atob(pem.replace(/-----[^-]+-----|\s/g, '')), c => c.charCodeAt(0));
     const key = await crypto.subtle.importKey('pkcs8', der, { name: 'Ed25519' }, false, ['sign']);
@@ -49,16 +93,18 @@ export default {
     async fetch(request, env) {
         const url = new URL(request.url);
         if (request.method === 'POST' && (url.pathname === '/activate' || url.pathname === '/deactivate')) return activation(request, env, url.pathname.slice(1));
+        if (request.method === 'POST' && url.pathname === '/stripe-webhook') return stripeWebhook(request, env);
         if (url.pathname !== '/success') return page('RustScout Pro', '<p>Nothing here.</p>');
         const id = url.searchParams.get('session_id') || '';
         if (!/^cs_(live|test)_\w+$/.test(id)) return page('Hmm', '<p>That link is missing its payment id.</p>');
 
-        const r = await fetch(`https://api.stripe.com/v1/checkout/sessions/${id}`, { headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` } });
-        const session = await r.json();
-        if (!r.ok || session.payment_status !== 'paid') return page('Payment not finished', '<p>Stripe hasn’t confirmed this payment yet. Refresh in a minute.</p>');
+        const session = await stripe(env, `checkout/sessions/${id}`);
+        if (!session || session.payment_status !== 'paid') return page('Payment not finished', '<p>Stripe hasn’t confirmed this payment yet. Refresh in a minute.</p>');
+        if (!ours(session, env)) return page('Hmm', '<p>That payment isn’t for RustScout Pro.</p>');
 
-        const payload = b64url(new TextEncoder().encode(JSON.stringify({ e: session.customer_details?.email || '', s: id, t: session.created })));
-        const key = `RS1-${payload}.${await sign(payload, env.LICENSE_PRIVATE_KEY)}`;
+        const key = await keyFor(session, env);
+        const rec = JSON.parse(await env.LICENSES.get(await sha256(key)) || 'null');
+        if (rec?.revoked) return page('Key disabled', '<p>This purchase was refunded or disputed, so its key no longer works. If that’s a mistake, open a ticket in our Discord.</p>');
         return page('Thanks for getting RustScout Pro!', `<p>Your licence key:</p>
 <textarea readonly rows="5" style="width:100%;background:#141416;color:#ece7df;border:1px solid #37373d;border-radius:6px;padding:10px;font:13px monospace">${esc(key)}</textarea>
 <p>In RustScout: <b>Settings → RustScout Pro</b>, paste the key and click <b>Activate</b>.</p>

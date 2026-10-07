@@ -53,6 +53,23 @@ Signs an activation for this PC with your private key and writes it to your Rust
 2. Payment Links → create one for it. Under **After payment**, choose **Redirect** to
    `https://<your-worker>/success?session_id={CHECKOUT_SESSION_ID}`
 3. Put the Payment Link URL in `BUY_URL` at the top of `public/js/pro.js` and on the website.
+4. Only give keys for this product: copy the Payment Link's id (`plink_…`) and run
+   ```
+   npx wrangler secret put PAYMENT_LINK_ID
+   ```
+5. Turn off keys automatically on refunds and chargebacks: Developers → Webhooks → Add endpoint
+   `https://<your-worker>/stripe-webhook` with the events `charge.refunded` and `charge.dispute.created`. Copy its signing secret (`whsec_…`) and run
+   ```
+   npx wrangler secret put STRIPE_WEBHOOK_SECRET
+   ```
+   Only full refunds turn a key off. The app checks in at start and every 12 hours, so Pro switches off on that PC soon after.
+
+## Turn a key off by hand
+
+```
+node licensing/revoke.js RS1-...
+node licensing/revoke.js RS1-... --undo
+```
 
 Test with Stripe test mode first (card `4242 4242 4242 4242`).
 

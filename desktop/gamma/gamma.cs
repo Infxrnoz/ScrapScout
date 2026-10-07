@@ -29,6 +29,17 @@ static class Gamma
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int NvDvc(IntPtr h, uint output, ref DvcInfo info);
     [StructLayout(LayoutKind.Sequential)] struct DvcInfo { public uint Ver; public int Cur, Min, Max, Def; }
 
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate IntPtr AdlAlloc(int size);
+    [DllImport("atiadlxx.dll", CallingConvention = CallingConvention.Cdecl)] static extern int ADL2_Main_Control_Create(AdlAlloc alloc, int connectedOnly, out IntPtr ctx);
+    [DllImport("atiadlxx.dll", CallingConvention = CallingConvention.Cdecl)] static extern int ADL2_Adapter_NumberOfAdapters_Get(IntPtr ctx, out int n);
+    [DllImport("atiadlxx.dll", CallingConvention = CallingConvention.Cdecl)] static extern int ADL2_Display_Color_Get(IntPtr ctx, int adapter, int display, int type, out int cur, out int def, out int min, out int max, out int step);
+    [DllImport("atiadlxx.dll", CallingConvention = CallingConvention.Cdecl)] static extern int ADL2_Display_Color_Set(IntPtr ctx, int adapter, int display, int type, int value);
+    const int ADL_SATURATION = 4;
+    class AdlDisplay { public int Adapter, Display, Def, Min, Max, Original; public bool Touched; }
+    static readonly AdlAlloc adlAlloc = size => Marshal.AllocHGlobal(size);
+    static IntPtr adlCtx;
+    static List<AdlDisplay> amdDisplays;
+
     static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
     static readonly double[] Luma = { 0.2126, 0.7152, 0.0722 };
     static bool magReady, filterOn, rampTouched;
@@ -75,6 +86,40 @@ static class Gamma
             ok &= nvSet(h, 0, ref d) == 0;
         }
         if (level < 0) nvOriginal.Clear();
+        return ok;
+    }
+
+    static bool AmdReady()
+    {
+        if (amdDisplays != null) return amdDisplays.Count > 0;
+        amdDisplays = new List<AdlDisplay>();
+        try
+        {
+            int n;
+            if (ADL2_Main_Control_Create(adlAlloc, 1, out adlCtx) != 0 || ADL2_Adapter_NumberOfAdapters_Get(adlCtx, out n) != 0) return false;
+            for (int a = 0; a < n; a++)
+                for (int d = 0; d < 8; d++)
+                {
+                    int cur, def, min, max, step;
+                    if (ADL2_Display_Color_Get(adlCtx, a, d, ADL_SATURATION, out cur, out def, out min, out max, out step) == 0 && max > min)
+                        amdDisplays.Add(new AdlDisplay { Adapter = a, Display = d, Def = def, Min = min, Max = max, Original = cur });
+                }
+        }
+        catch { amdDisplays.Clear(); }
+        return amdDisplays.Count > 0;
+    }
+
+    static bool AmdSetVibrance(int level)
+    {
+        if (!AmdReady()) return false;
+        bool ok = false;
+        foreach (var d in amdDisplays)
+        {
+            if (level < 0 && !d.Touched) continue;
+            double k = (level - 50) / 50.0;
+            int target = level < 0 ? d.Original : (int)Math.Round(d.Def + (k >= 0 ? k * (d.Max - d.Def) : k * (d.Def - d.Min)));
+            if (ADL2_Display_Color_Set(adlCtx, d.Adapter, d.Display, ADL_SATURATION, Math.Max(d.Min, Math.Min(d.Max, target))) == 0) { ok = true; d.Touched = level >= 0; }
+        }
         return ok;
     }
 
@@ -160,9 +205,10 @@ static class Gamma
         if (vib >= 0)
         {
             if (NvSetVibrance((int)Math.Round(vib))) vibMethod = "nvidia";
+            else if (AmdSetVibrance((int)Math.Round(vib))) vibMethod = "amd";
             else { satMul *= 1 + (vib - 50) / 100.0; vibMethod = "filter"; }
         }
-        else NvSetVibrance(-1);
+        else { NvSetVibrance(-1); AmdSetVibrance(-1); }
 
         string method = "off";
         double strength = 0;

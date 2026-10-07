@@ -109,7 +109,7 @@ static class Display
             PATH_TARGET t;
             int hdr = -1;
             if (targets.TryGetValue(dd.DeviceName, out t)) { hdr = Hdr(t); monitor = FriendlyName(t) ?? monitor; }
-            outList.Add("{\"device\":\"" + Esc(dd.DeviceName) + "\",\"monitor\":\"" + Esc(monitor) + "\",\"primary\":" + ((dd.StateFlags & PRIMARY) != 0 ? "true" : "false")
+            outList.Add("{\"device\":\"" + Esc(dd.DeviceName) + "\",\"monitor\":\"" + Esc(monitor) + "\",\"gpu\":\"" + Esc(dd.DeviceString) + "\",\"primary\":" + ((dd.StateFlags & PRIMARY) != 0 ? "true" : "false")
                 + ",\"current\":[" + cur.dmPelsWidth + "," + cur.dmPelsHeight + "," + cur.dmDisplayFrequency + "," + cur.dmDisplayFixedOutput + "]"
                 + ",\"hdr\":" + (hdr < 0 ? "null" : hdr == 1 ? "true" : "false") + ",\"modes\":[" + string.Join(",", modes) + "]}");
         }

@@ -7,6 +7,25 @@
     let displays = [];
     let countdown = null;
 
+    const vendor = gpu => /nvidia/i.test(gpu) ? 'nvidia' : /amd|radeon/i.test(gpu) ? 'amd' : /intel/i.test(gpu) ? 'intel' : '';
+    const HELP = {
+        nvidia: {
+            custom: 'Add it in NVIDIA Control Panel → Change resolution → Customize → Create Custom Resolution.',
+            scale: 'In NVIDIA Control Panel → Adjust desktop size and position, set Scaling to Full-screen and "Perform scaling on" to GPU.'
+        },
+        amd: {
+            custom: 'Add it in AMD Software → Settings → Display → Custom Resolutions → Create New.',
+            scale: 'In AMD Software → Settings → Display, turn on GPU Scaling and set Scaling Mode to Full panel.'
+        },
+        intel: {
+            custom: 'Add it in Intel Graphics Command Center (or Arc Control) → Display → Custom Resolution.',
+            scale: 'In Intel Graphics Command Center (or Arc Control) → Display, set Scale to Stretch and tick Override application settings.'
+        },
+        '': {
+            custom: 'Add it as a custom resolution in your graphics driver’s control panel first.',
+            scale: 'Turn on GPU scaling (full screen / stretch) in your graphics driver’s control panel.'
+        }
+    };
     const aspect = (w, h) => w / h;
     const label = (w, h) => {
         const a = aspect(w, h);
@@ -27,7 +46,8 @@
             <div class="disp-chips" data-k="hz"></div>
             ${presets.length ? `<div class="hint">Stretched 4:3</div><div class="disp-chips">${presets.map(([w, h]) => `<button data-preset="${w}x${h}">${w}×${h}</button>`).join('')}<button data-preset="${native[0]}x${native[1]}" data-native>Native</button></div>` : ''}
             <div data-scale><div class="hint">Scaling</div><div class="disp-chips" data-k="fixed">
-                <button data-v="2">Stretched</button><button data-v="1">Black bars</button><button data-v="0">Driver</button></div></div>
+                <button data-v="2">Stretched</button><button data-v="1">Black bars</button><button data-v="0">Driver</button></div>
+                ${vendor(d.gpu) !== 'nvidia' ? `<div class="hint">Black bars instead of stretched? ${HELP[vendor(d.gpu)].scale}</div>` : ''}</div>
             ${d.hdr === null ? '' : `<label class="toggle"><input type="checkbox" data-k="hdr" ${d.hdr ? 'checked' : ''}><i></i> HDR</label>`}
             <button class="btn small" data-apply>Apply</button>
         </div>`;
@@ -64,8 +84,9 @@
             const [w, h, custom] = chosen();
             if (!w || !h) return status('Enter both a width and a height.', true);
             const r = await window.desktop.displaySet({ device: d.device, w, h, hz, fixed: el.querySelector('[data-scale]').hidden ? -1 : fixed });
-            if (!r.ok) return status(custom ? `Your graphics driver doesn't offer ${w}×${h} at ${hz} Hz. Add it as a custom resolution in NVIDIA Control Panel (Change resolution → Customize) or AMD Software first.` : (r.error || 'Couldn’t change the display'), true);
-            status(r.scaling === false ? 'Resolution changed, but your graphics driver ignored the stretch setting. Turn on GPU scaling in the NVIDIA/AMD control panel.' : '');
+            const help = HELP[vendor(d.gpu)];
+            if (!r.ok) return status(custom ? `Your graphics driver doesn't offer ${w}×${h} at ${hz} Hz. ${help.custom}` : (r.error || 'Couldn’t change the display'), true);
+            status(r.scaling === false ? `Resolution changed, but your graphics driver ignored the stretch setting. ${help.scale}` : '');
             confirmKeep();
         };
         for (const b of el.querySelectorAll('[data-preset]')) b.onclick = () => {
