@@ -139,6 +139,8 @@ const COMMANDS = {
         return al.length ? al.map(d => `${d.name}: ${d.lastTrigger ? `${dur(Date.now() - d.lastTrigger)} ago` : 'never'}`).join(' | ') : 'No alarms paired';
     },
 
+    ack: ({ ack, senderName }) => ack?.(senderName || 'A teammate') ? 'Raid alarm answered, reminders stopped.' : 'No raid alarm is ringing.',
+
     sw: async ({ devices, setSwitch }, args) => {
         const state = args[args.length - 1]?.toLowerCase();
         if (!['on', 'off'].includes(state)) return 'Usage: sw <name> on|off';

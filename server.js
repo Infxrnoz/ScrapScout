@@ -28,11 +28,11 @@ const SERVERS_FILE = path.join(DATA, 'servers.json');
 const ALERT_KINDS = {
     teamDeath: 'Teammate died', teamOnline: 'Teammate online', teamOffline: 'Teammate offline', teamRespawn: 'Teammate respawned',
     killedBy: 'You were killed', alarm: 'Smart alarm', chat: 'Team chat', upkeep: 'TC upkeep low', watchWipe: 'Watched server wiped',
-    trackedOnline: 'Tracked player joined', trackedOffline: 'Tracked player left', decay: 'Decay timer'
+    trackedOnline: 'Tracked player joined', trackedOffline: 'Tracked player left', decay: 'Decay timer', storage: 'Storage alert'
 };
 const DEFAULT_ALERTS = Object.fromEntries(Object.keys(ALERT_KINDS).map(k => [k, {
     toast: !['teamRespawn', 'chat'].includes(k),
-    discord: ['teamDeath', 'killedBy', 'alarm', 'upkeep', 'watchWipe', 'trackedOnline', 'trackedOffline', 'decay'].includes(k)
+    discord: ['teamDeath', 'killedBy', 'alarm', 'upkeep', 'watchWipe', 'trackedOnline', 'trackedOffline', 'decay', 'storage'].includes(k)
 }]));
 
 const DEFAULT_CONFIG = {
@@ -49,6 +49,7 @@ const DEFAULT_CONFIG = {
     discordBot: { enabled: false, token: '', channelId: '', prefix: '!', allowSay: false },
     upkeepAlertHours: 3,
     decayAlertMinutes: 30,
+    escalation: { enabled: false, repeatMinutes: 2, maxRepeats: 5, mention: '@here', sound: true },
     alerts: DEFAULT_ALERTS
 };
 
@@ -77,6 +78,7 @@ const config = {
     poll: { ...DEFAULT_CONFIG.poll, ...loaded.poll },
     bot: { ...DEFAULT_CONFIG.bot, ...loaded.bot },
     discordBot: { ...DEFAULT_CONFIG.discordBot, ...loaded.discordBot },
+    escalation: { ...DEFAULT_CONFIG.escalation, ...loaded.escalation },
     alerts: Object.fromEntries(Object.keys(ALERT_KINDS).map(k => [k, { ...DEFAULT_ALERTS[k], ...loaded.alerts?.[k] }]))
 };
 const saveConfig = () => writeJson(CONFIG_FILE, { ...config, port: loaded.port ?? config.port });
@@ -111,29 +113,78 @@ const broadcast = msg => {
 
 let discordBot = null;
 
-const ALERT_COLORS = { teamDeath: 0xd8412f, killedBy: 0xd8412f, alarm: 0xff3b30, teamOnline: 0x7cc043, teamOffline: 0x8d8a85, sulfurSale: 0xf07a2c, upkeep: 0xe4a73a };
+const ITEMS = readJson(path.join(STATIC, 'items.json'), {});
+const ALERT_COLORS = { storage: 0xe4a73a, teamDeath: 0xd8412f, killedBy: 0xd8412f, alarm: 0xff3b30, teamOnline: 0x7cc043, teamOffline: 0x8d8a85, sulfurSale: 0xf07a2c, upkeep: 0xe4a73a };
 
 function alert(kind, text, extra = {}) {
     const rule = config.alerts[kind];
     if (!rule) return;
     const entry = { kind, label: ALERT_KINDS[kind], text, t: Date.now(), server: session?.server.name, ...extra };
     broadcast({ type: 'alert', alert: entry, toast: rule.toast });
-    if (rule.discord && !isPro()) return;
-    if (rule.discord && !config.discordWebhook && discordBot?.user) {
-        discordBot.post({ title: ALERT_KINDS[kind], description: text, color: ALERT_COLORS[kind] ?? 0x3fa9f5, footer: entry.server ? { text: entry.server } : undefined })
-            .catch(e => log('discord bot alert failed:', e.message));
-    }
-    if (rule.discord && config.discordWebhook) {
+    if (kind === 'alarm' && escalate(text, entry.server)) return;
+    if (rule.discord && isPro()) discordSend(ALERT_KINDS[kind], text, ALERT_COLORS[kind], entry.server);
+}
+
+function mentionFor(m) {
+    m = String(m || '').trim();
+    if (m === '@here' || m === '@everyone') return { content: m, allowed: { parse: ['everyone'] } };
+    const role = /^<@&(\d{15,25})>$/.exec(m), user = /^<@!?(\d{15,25})>$/.exec(m);
+    if (role) return { content: m, allowed: { parse: [], roles: [role[1]] } };
+    if (user) return { content: m, allowed: { parse: [], users: [user[1]] } };
+    return null;
+}
+
+function discordSend(title, text, color = 0x3fa9f5, server, ping) {
+    const embed = { title, description: text, color, footer: server ? { text: server } : undefined };
+    if (config.discordWebhook) {
         fetch(config.discordWebhook, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                username: 'RustScout',
-                embeds: [{ title: ALERT_KINDS[kind], description: text, color: ALERT_COLORS[kind] ?? 0x3fa9f5, timestamp: new Date().toISOString(), footer: entry.server ? { text: entry.server } : undefined }]
+                username: 'RustScout', content: ping?.content, allowed_mentions: ping ? ping.allowed : { parse: [] },
+                embeds: [{ ...embed, timestamp: new Date().toISOString() }]
             }),
             signal: AbortSignal.timeout(8000)
         }).catch(e => log('webhook failed:', e.message));
+    } else if (discordBot?.user) {
+        discordBot.post(embed, undefined, ping).catch(e => log('discord bot alert failed:', e.message));
     }
+}
+
+const escalation = { active: null, timer: null };
+
+function escalate(text, server) {
+    const e = config.escalation;
+    if (!e.enabled || !isPro()) return false;
+    if (escalation.active) {
+        escalation.active.text = text;
+        broadcast({ type: 'escalation', escalation: escalation.active });
+        return true;
+    }
+    escalation.active = { text, server, startedAt: Date.now(), count: 0, sound: e.sound };
+    ring();
+    return true;
+}
+
+function ring() {
+    const a = escalation.active;
+    if (!a) return;
+    a.count++;
+    a.nextAt = a.count < config.escalation.maxRepeats ? Date.now() + config.escalation.repeatMinutes * 60e3 : null;
+    broadcast({ type: 'escalation', escalation: a });
+    const how = `Answer with **${config.bot.prefix}ack** in team chat${discordBot?.user ? `, **${config.discordBot.prefix}ack** here` : ''} or **I'm on it** in RustScout.`;
+    discordSend(`🚨 Raid alarm${a.count > 1 ? ` (reminder ${a.count - 1})` : ''}`, `${a.text}\n${how}`, 0xff3b30, a.server, mentionFor(config.escalation.mention));
+    if (a.nextAt) escalation.timer = setTimeout(ring, a.nextAt - Date.now());
+}
+
+function acknowledge(by) {
+    if (!escalation.active) return false;
+    clearTimeout(escalation.timer);
+    escalation.active = null;
+    broadcast({ type: 'escalation', escalation: null, by });
+    discordSend('✅ On it', `${by} answered the raid alarm.`, 0x7fd04a);
+    log(`raid alarm answered by ${by}`);
+    return true;
 }
 
 const NOT_LINKED = process.env.DESKTOP ? 'not set up — link your Steam account' : 'not set up — run setup.bat (or npm run register) to link Steam';
@@ -395,6 +446,7 @@ class Session {
             const device = this.devices.get(entityId);
             if (!device) return;
             if (this.devices.apply(entityId, payload)) alert('alarm', `${device.name} triggered`);
+            this.checkStorage(entityId);
             this.pushDevices();
         }
         if (b.teamChanged) this.refreshTeam().catch(() => {});
@@ -501,7 +553,7 @@ class Session {
         broadcast({ type: 'chatMessage', message: m });
         if (m.steamId !== this.server.playerId) alert('chat', `${m.name}: ${m.message}`);
         if (!config.bot.enabled) return;
-        const reply = await chatbot.handle(m.message, config.bot.prefix, { ...this.botContext(), sender: String(m.steamId) });
+        const reply = await chatbot.handle(m.message, config.bot.prefix, { ...this.botContext(), sender: String(m.steamId), senderName: m.name });
         if (reply) await this.say(reply);
     }
 
@@ -509,7 +561,7 @@ class Session {
         return {
             info: this.state.info, team: this.state.team, mapMeta: this.state.mapMeta, devices: this.devices,
             pins: this.pins, decayTable: decayTable(), pushPins: () => this.pushPins(),
-            gameTime: () => this.gameTime(), isPro: isPro(),
+            gameTime: () => this.gameTime(), isPro: isPro(), ack: by => acknowledge(by),
             setSwitch: (id, value) => this.setSwitch(id, value)
         };
     }
@@ -532,6 +584,7 @@ class Session {
         try {
             const { entityInfo } = await this.request({ entityId: Number(id), getEntityInfo: {} });
             this.devices.apply(id, plain(entityInfo).payload);
+            this.checkStorage(id);
         } catch {
             this.devices.markUnreachable(id);
         }
@@ -554,6 +607,14 @@ class Session {
             } else if (left >= limit) {
                 this.upkeepWarned.delete(d.id);
             }
+        }
+    }
+
+    checkStorage(id) {
+        if (!isPro()) return;
+        const d = this.devices.get(id);
+        for (const r of this.devices.checkRules(id)) {
+            alert('storage', `${d.name}: ${ITEMS[r.itemId]?.n || 'item'} is ${r.op} ${r.qty.toLocaleString()} (${r.have.toLocaleString()} now)`);
         }
     }
 
@@ -694,6 +755,13 @@ app.post('/api/devices', needSession, guard(async (req, res) => {
     session.pushDevices();
     res.json({ ok: true });
 }));
+app.put('/api/devices/:id/rules', needSession, needPro, (req, res) => {
+    const rules = session.devices.setRules(req.params.id, req.body?.rules);
+    if (!rules) return res.status(400).json({ error: 'Not a storage monitor' });
+    session.checkStorage(req.params.id);
+    session.pushDevices();
+    res.json({ rules });
+});
 app.put('/api/devices/:id', needSession, (req, res) => {
     session.devices.rename(req.params.id, req.body?.name || 'Device');
     session.pushDevices();
@@ -870,6 +938,7 @@ async function discordCommand(cmd, args, msg) {
         return `**Commands** (prefix \`${p}\`)\n${chatbot.COMMANDS.filter(c => c !== 'help').map(c => `\`${c}\``).join(' ')}\n`
             + Object.entries(DISCORD_EXTRA).map(([c, d]) => `\`${c}\` ${d}`).join(' · ');
     }
+    if (cmd === 'ack') return acknowledge(msg.author.global_name || msg.author.username) ? 'Raid alarm answered, reminders stopped.' : 'No raid alarm is ringing.';
     if (cmd === 'tracked') {
         const snap = await tracking.snapshot();
         const lines = snap.groups.flatMap(g => g.members.map(m =>
@@ -955,8 +1024,19 @@ app.get('/api/settings', (req, res) => res.json({
     discordBot: { ...config.discordBot, token: config.discordBot.token ? '(set)' : '' },
     discordBotStatus: discordBot?.status ?? 'off',
     upkeepAlertHours: config.upkeepAlertHours, decayAlertMinutes: config.decayAlertMinutes,
+    escalation: config.escalation,
     commands: chatbot.COMMANDS
 }));
+
+app.post('/api/escalation/ack', (req, res) => {
+    const me = session?.state.team?.members?.find(m => String(m.steamId) === String(session.server.playerId))?.name;
+    res.json({ ok: acknowledge(me || 'Someone at the PC') });
+});
+app.post('/api/escalation/test', needPro, (req, res) => {
+    if (!config.escalation.enabled) return res.status(400).json({ error: 'Turn on raid alarm escalation and save first' });
+    alert('alarm', 'Test alarm from RustScout (nothing is happening)');
+    res.json({ ok: true });
+});
 
 app.put('/api/settings', (req, res) => {
     const b = req.body || {};
@@ -988,6 +1068,16 @@ app.put('/api/settings', (req, res) => {
     const num = v => v !== '' && v !== null && v !== undefined && Number.isFinite(+v) && +v >= 0 ? +v : null;
     if (num(b.upkeepAlertHours) !== null) config.upkeepAlertHours = num(b.upkeepAlertHours);
     if (num(b.decayAlertMinutes) > 0) config.decayAlertMinutes = num(b.decayAlertMinutes);
+    if (b.escalation) {
+        const e = b.escalation, mention = String(e.mention ?? '').trim();
+        if (mention && !mentionFor(mention)) return res.status(400).json({ error: 'Mention must be @here, @everyone, a role like <@&123…> or a user like <@123…>' });
+        config.escalation = {
+            enabled: !!e.enabled, sound: !!e.sound, mention,
+            repeatMinutes: Math.min(30, Math.max(1, num(e.repeatMinutes) ?? 2)),
+            maxRepeats: Math.min(20, Math.max(1, Math.round(num(e.maxRepeats) ?? 5)))
+        };
+        if (!config.escalation.enabled) acknowledge('Settings');
+    }
     saveConfig();
     res.json({ ok: true });
 });
@@ -1105,6 +1195,7 @@ app.post('/api/settings/test-webhook', guard(async (req, res) => {
 wss.on('connection', ws => {
     ws.send(JSON.stringify({ type: 'servers', servers: publicServers() }));
     ws.send(JSON.stringify({ type: 'reset', snapshot: session?.snapshot() ?? null }));
+    if (escalation.active) ws.send(JSON.stringify({ type: 'escalation', escalation: escalation.active }));
 });
 
 httpServer.on('error', e => {

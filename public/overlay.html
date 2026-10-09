@@ -61,6 +61,7 @@ function drawHud() {
     el.className = `${S.settings.hud ? 'on' : ''} ${S.settings.hudCorner || 'top-right'}`;
     if (!S.settings.hud) return;
     const rows = [];
+    if (S.escalation) rows.push(`<div class="alert"><b>🚨 RAID ALARM</b> ${esc(S.escalation.text)}</div>`);
     if (S.info) {
         rows.push(`<div class="name">${esc(S.info.name)}</div>`);
         rows.push(`<div class="row"><span class="muted">Pop</span><span>${S.info.players}/${S.info.maxPlayers}${S.info.queuedPlayers ? ` <span class="warn">+${S.info.queuedPlayers}</span>` : ''}</span></div>`);
@@ -71,6 +72,11 @@ function drawHud() {
     if (decay) {
         const left = decay.end - Date.now();
         rows.push(`<div class="row"><span class="muted">⏳ ${esc(decay.label || decay.name)}</span><span class="${left < 1800e3 ? 'bad' : ''}">${left > 0 ? dur(left) : 'GONE'}</span></div>`);
+    }
+    const tc = (S.devices || []).filter(d => d.type === 'monitor' && d.hasProtection).sort((a, b) => a.protectionExpiry - b.protectionExpiry)[0];
+    if (tc) {
+        const left = tc.protectionExpiry * 1000 - Date.now();
+        rows.push(`<div class="row"><span class="muted">🏠 ${esc(tc.name)}</span><span class="${left < 3 * 3600e3 ? 'bad' : ''}">${left > 0 ? dur(left) : 'DECAYING'}</span></div>`);
     }
     const fresh = S.alerts.filter(a => Date.now() - a.shown < 15000).slice(0, 3);
     for (const a of fresh) rows.push(`<div class="alert" style="opacity:${Date.now() - a.shown > 12000 ? 0.3 : 1}"><b>${esc(a.label || a.kind)}</b> ${esc(a.text)}</div>`);
@@ -83,10 +89,12 @@ function connect() {
         const m = JSON.parse(ev.data);
         if (m.type === 'reset') {
             const s = m.snapshot;
-            Object.assign(S, { info: s?.info ?? null, time: s?.time ?? null, pins: s?.pins ?? [], status: s?.status ?? null });
+            Object.assign(S, { info: s?.info ?? null, time: s?.time ?? null, pins: s?.pins ?? [], devices: s?.devices ?? [], status: s?.status ?? null });
         } else if (m.type === 'info') S.info = m.info;
         else if (m.type === 'time') S.time = m.time;
         else if (m.type === 'pins') S.pins = m.pins;
+        else if (m.type === 'devices') S.devices = m.devices;
+        else if (m.type === 'escalation') S.escalation = m.escalation;
         else if (m.type === 'status') S.status = m.status;
         else if (m.type === 'alert' && m.toast) S.alerts.unshift({ ...m.alert, shown: Date.now() });
         drawHud();

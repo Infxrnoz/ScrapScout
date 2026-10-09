@@ -25,10 +25,25 @@
             : '';
         const items = [...d.items].sort((a, b) => b.quantity - a.quantity).map(i =>
             `<div class="slot" title="${esc(itemName(i.itemId))}">${icon(i.itemId, 'icon')}<span>${fmt(i.quantity)}</span></div>`).join('');
+        const rules = (d.rules || []).map((r, i) => `<div class="rule ${r.fired ? 'fired' : ''}">${icon(r.itemId)}<span class="grow">${esc(itemName(r.itemId))} ${r.op} <b>${fmt(r.qty)}</b></span>
+            <button class="icon-btn" data-rule-del="${d.id}" data-i="${i}" title="Remove">✕</button></div>`).join('');
+        const choices = [...new Set([...d.items.map(i => String(i.itemId)), ...WATCH_ITEMS])].filter(id => S.items[id])
+            .map(id => `<option value="${id}">${esc(itemName(id))}</option>`).join('');
         return `<div class="device monitor">${head}${upkeep}
             <div class="sub">${d.items.length}/${d.capacity || '?'} slots</div>
-            <div class="slots">${items || '<span class="muted">empty</span>'}</div></div>`;
+            <div class="slots">${items || '<span class="muted">empty</span>'}</div>
+            <details class="rules"><summary>Alerts${d.rules?.length ? ` <span class="tag">${d.rules.length}</span>` : ''}${S.pro ? '' : ' <span class="tag gold">PRO</span>'}</summary>
+                ${!S.pro ? '<p class="pro-lock">Box alerts are a Pro feature. Unlock it in <b>Settings → RustScout Pro</b>.</p>' : `
+                ${rules || '<p class="hint">Get an alert (and a Discord ping) when something in this box goes above or below an amount.</p>'}
+                <form class="rule-add" data-rule-add="${d.id}"><select name="itemId">${choices}</select>
+                    <select name="op"><option value="below">below</option><option value="above">above</option></select>
+                    <input name="qty" type="number" min="0" value="1000"><button class="btn small">Add</button></form>`}
+            </details></div>`;
     }
+    const WATCH_ITEMS = ['-1581843485', '-592016202', '-265876753', '1248356124', '-742865266', '69511070', '317398316', '-2099697608', '-151838493', '-932201673', '-946369541', '-1938052175'];
+
+    const saveRules = (id, rules) => api(`/api/devices/${id}/rules`, { method: 'PUT', body: { rules } })
+        .catch(e => toast({ kind: 'alarm', label: 'Could not save', text: e.message }));
 
     function render() {
         const list = S.devices || [];
@@ -46,6 +61,21 @@
         $$('#device-list [data-remove]').forEach(b => b.onclick = async () => {
             if (!confirm('Remove this device?')) return;
             await api(`/api/devices/${b.dataset.remove}`, { method: 'DELETE' }).catch(() => {});
+        });
+        $$('#device-list [data-rule-add]').forEach(f => f.onsubmit = e => {
+            e.preventDefault();
+            const d = S.devices.find(x => x.id === f.dataset.ruleAdd);
+            const r = Object.fromEntries(new FormData(f));
+            saveRules(d.id, [...(d.rules || []), r]);
+        });
+        $$('#device-list [data-rule-del]').forEach(b => b.onclick = () => {
+            const d = S.devices.find(x => x.id === b.dataset.ruleDel);
+            saveRules(d.id, d.rules.filter((_, i) => i !== Number(b.dataset.i)));
+        });
+        $$('#device-list details.rules').forEach(el => {
+            const key = `rules-open-${el.closest('.device').querySelector('[data-rename]').dataset.rename}`;
+            el.open = !!store.get(key, false);
+            el.ontoggle = () => store.set(key, el.open);
         });
         $$('#device-list [data-rename]').forEach(el => el.onclick = async () => {
             const name = prompt('Device name', el.textContent);
@@ -66,6 +96,7 @@
     };
 
     bus.on('devices', render);
+    bus.on('pro', render);
     bus.on('reset', render);
     setInterval(() => $$('#device-list [data-expiry]').forEach(el => el.textContent = dur(Number(el.dataset.expiry) * 1000 - Date.now())), 1000);
 })();

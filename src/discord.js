@@ -86,11 +86,12 @@ class DiscordBot {
         if (reply) await this.post(reply, m.id);
     }
 
-    async post(body, replyTo) {
+    async post(body, replyTo, ping) {
         const payload = typeof body === 'string'
             ? { content: body.slice(0, 1900) }
             : { embeds: [{ ...body, description: body.description?.slice(0, 4000) }] };
-        payload.allowed_mentions = { parse: [] };
+        payload.allowed_mentions = ping ? ping.allowed : { parse: [] };
+        if (ping) payload.content = ping.content;
         if (replyTo) payload.message_reference = { message_id: replyTo, fail_if_not_exists: false };
         const r = await fetch(`${API}/channels/${this.opts.channelId}/messages`, {
             method: 'POST',

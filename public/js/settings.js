@@ -54,6 +54,12 @@
         $('#set-dbot-prefix').value = settings.discordBot.prefix;
         $('#set-dbot-say').checked = settings.discordBot.allowSay;
         $('#dbot-status').textContent = `Status: ${settings.discordBotStatus}`;
+        const e = settings.escalation;
+        $('#set-esc').checked = e.enabled;
+        $('#set-esc-sound').checked = e.sound;
+        $('#set-esc-every').value = e.repeatMinutes;
+        $('#set-esc-max').value = e.maxRepeats;
+        $('#set-esc-mention').value = e.mention;
         $('#alert-matrix').innerHTML = `<div class="matrix-head"><span></span><span>Toast</span><span>Discord</span></div>` +
             Object.entries(settings.alertKinds).map(([k, label]) => `
                 <label class="matrix-row"><span>${esc(label)}</span>
@@ -73,7 +79,11 @@
                         enabled: $('#set-dbot').checked, token: $('#set-dbot-token').value.trim(), channelId: $('#set-dbot-channel').value.trim(),
                         prefix: $('#set-dbot-prefix').value.trim() || '!', allowSay: $('#set-dbot-say').checked
                     },
-                    upkeepAlertHours: $('#set-upkeep').value, decayAlertMinutes: $('#set-decay').value, alerts
+                    upkeepAlertHours: $('#set-upkeep').value, decayAlertMinutes: $('#set-decay').value, alerts,
+                    ...(S.pro ? { escalation: {
+                        enabled: $('#set-esc').checked, sound: $('#set-esc-sound').checked, mention: $('#set-esc-mention').value.trim(),
+                        repeatMinutes: $('#set-esc-every').value, maxRepeats: $('#set-esc-max').value
+                    } } : {})
                 }
             });
             toast({ kind: 'teamOnline', label: 'Saved', text: 'Settings updated' });
@@ -83,6 +93,7 @@
     }
 
     $('#settings-save').onclick = saveSettings;
+    $('#esc-test').onclick = () => api('/api/escalation/test', { method: 'POST' }).catch(e => toast({ kind: 'alarm', label: 'Test failed', text: e.message }));
     $('#webhook-test').onclick = async () => {
         try {
             await api('/api/settings/test-webhook', { method: 'POST' });

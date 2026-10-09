@@ -622,6 +622,37 @@ const ALERT_STYLE = {
 };
 S.alerts = [];
 
+let sirenCtx = null, lastRing = null;
+function playSiren(seconds = 6) {
+    try {
+        const ctx = sirenCtx ??= new AudioContext();
+        const o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime;
+        o.type = 'sawtooth';
+        o.connect(g).connect(ctx.destination);
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.22, t + 0.1);
+        for (let i = 0; i < seconds * 2; i++) {
+            o.frequency.setValueAtTime(620, t + i / 2);
+            o.frequency.linearRampToValueAtTime(1150, t + i / 2 + 0.45);
+        }
+        g.gain.setValueAtTime(0.22, t + seconds - 0.2);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + seconds);
+        o.start(t);
+        o.stop(t + seconds);
+    } catch {  }
+}
+
+function showEscalation(e) {
+    $('#escalation').hidden = !e;
+    if (!e) return;
+    $('#esc-text').textContent = e.text;
+    $('#esc-count').textContent = e.nextAt ? `next ping ${new Date(e.nextAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : `pinged ${e.count}×, no more reminders`;
+    const ring = `${e.startedAt}:${e.count}`;
+    if (e.sound && ring !== lastRing) playSiren();
+    lastRing = ring;
+}
+$('#esc-ack').onclick = () => api('/api/escalation/ack', { method: 'POST' }).catch(() => {});
+
 function toast(a) {
     const el = document.createElement('div');
     el.className = 'toast';
@@ -759,6 +790,10 @@ function connect() {
             case 'devices': S.devices = msg.devices; bus.emit('devices'); break;
             case 'pins': S.pins = msg.pins; bus.emit('pins'); break;
             case 'threatsChanged': bus.emit('threatsChanged'); break;
+            case 'escalation':
+                showEscalation(msg.escalation);
+                if (!msg.escalation && msg.by) toast({ kind: 'teamOnline', label: 'Raid alarm answered', text: `${msg.by} is on it` });
+                break;
             case 'alert':
                 S.alerts.unshift(msg.alert);
                 S.alerts = S.alerts.slice(0, 200);

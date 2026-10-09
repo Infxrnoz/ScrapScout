@@ -402,6 +402,20 @@
                 <label class="field">Decay timer alert (minutes before)<input id="set-decay" type="number" min="1" step="5" class="num"></label>
             </div>
             <div id="alert-matrix" class="matrix"></div>
+            <section id="escalation-settings">
+                <h3>Raid alarm escalation</h3>
+                <p class="hint">When a smart alarm goes off, keep ringing until someone answers: a siren in RustScout and a Discord ping, repeated until a teammate types <code>!ack</code> in team chat or Discord, or clicks <b>I'm on it</b>.</p>
+                <div class="form">
+                    <label class="check"><input type="checkbox" id="set-esc"> Escalate smart alarms</label>
+                    <label class="check"><input type="checkbox" id="set-esc-sound"> Play a siren on this PC</label>
+                    <div class="row">
+                        <label class="field">Repeat every (min)<input id="set-esc-every" type="number" min="1" max="30" class="num"></label>
+                        <label class="field">Stop after<input id="set-esc-max" type="number" min="1" max="20" class="num"></label>
+                    </div>
+                    <label class="field">Discord ping<input id="set-esc-mention" placeholder="@here, @everyone, <@&roleId> or leave empty"></label>
+                    <button class="btn ghost small" id="esc-test" type="button">Test it (save first)</button>
+                </div>
+            </section>
             <button class="btn" id="settings-save" style="margin-top:10px;width:100%">Save settings</button>
 
             <h2>Removed by Facepunch</h2>
@@ -427,6 +441,7 @@
 </div>
 
 <div id="toasts"></div>
+<div id="escalation" hidden><b>🚨 RAID ALARM</b><span id="esc-text"></span><span id="esc-count" class="muted"></span><button class="btn small" id="esc-ack">I'm on it</button></div>
 
 <script src="/vendor/leaflet/leaflet.js"></script>
 <script src="/js/core.js"></script>

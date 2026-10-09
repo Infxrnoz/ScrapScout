@@ -1,12 +1,14 @@
 window.pro = (() => {
     const BUY_URL = '';
-    const LOCKED = ['#appearance-settings', '#color-settings', '#overlay-settings', '#discord-settings',
+    const LOCKED = ['#appearance-settings', '#color-settings', '#overlay-settings', '#discord-settings', '#escalation-settings',
         ...['browse', 'raid', 'tracked', 'tools', 'recycle', 'breeder', 'power', 'display'].map(p => `section[data-panel="${p}"]`)];
     const PERKS = 'Pro unlocks the calculators, decay timers and pins, the server browser and map files, tracked players, killer stats on Threats, Discord alerts and bot, the in-game overlay, colour profiles, display settings (resolution, refresh rate, HDR, stretched 4:3) and Appearance. Each key works on one PC at a time.';
     const q = s => document.querySelector(s);
     const ready = fetch('/api/license').then(r => r.json()).catch(() => ({ pro: false }));
 
     function show(l) {
+        S.pro = !!l.pro;
+        bus.emit('pro');
         q('#pro-status').innerHTML = l.pro
             ? `<b class="ok">Pro is active</b>${l.email ? ` for ${l.email.replace(/[&<>"]/g, '')}` : ''}. Thanks for supporting RustScout!`
             : l.needsActivation ? 'Your Pro key isn’t activated on this PC yet. Click <b>Activate</b> (needs internet once). Each key works on one PC at a time.'
