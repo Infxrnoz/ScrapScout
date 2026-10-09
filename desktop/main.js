@@ -461,8 +461,34 @@ function registerOverlayKeys() {
     claimKey('crosshair', () => setOverlay({ crosshair: { on: !overlaySettings().crosshair.on } }));
 }
 
+let update = null;
+let installUpdate = () => {};
+
+function startUpdater() {
+    if (!app.isPackaged || process.env.ROT_USER_DATA) return;
+    let autoUpdater;
+    try { ({ autoUpdater } = require('electron-updater')); } catch (e) { dlog(`updater unavailable: ${e.message}`); return; }
+    autoUpdater.autoDownload = true;
+    autoUpdater.autoInstallOnAppQuit = true;
+    autoUpdater.logger = null;
+    autoUpdater.on('update-downloaded', info => {
+        update = { version: info.version };
+        dlog(`update ${info.version} downloaded`);
+        buildTray();
+        win?.webContents.send('update-ready', update);
+    });
+    autoUpdater.on('error', e => dlog(`update check failed: ${e.message}`));
+    installUpdate = () => { quitting = true; autoUpdater.quitAndInstall(true, true); };
+    const check = () => autoUpdater.checkForUpdates().catch(() => {});
+    setTimeout(check, 60e3);
+    setInterval(check, 6 * 3600e3);
+}
+ipcMain.handle('update-get', () => update);
+ipcMain.handle('update-install', () => installUpdate());
+
 function buildTray() {
     const menu = Menu.buildFromTemplate([
+        ...(update ? [{ label: `Restart to update (v${update.version})`, click: () => installUpdate() }, { type: 'separator' }] : []),
         { label: 'Open RustScout', click: showWindow },
         { type: 'separator' },
         { label: 'Link Steam account…', click: async () => { showWindow(); const r = await linkSteam(); if (!r.ok) dialog.showMessageBox(win, { type: 'error', title: 'Steam link', message: 'Couldn’t link Steam', detail: r.error }); } },
@@ -509,6 +535,7 @@ app.on('window-all-closed', () => {  });
 app.whenReady().then(async () => {
     try {
         await startServer();
+        startUpdater();
     } catch (e) {
         dialog.showErrorBox('RustScout couldn’t start', e.stack || e.message);
         app.exit(1);

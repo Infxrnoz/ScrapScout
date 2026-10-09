@@ -278,6 +278,8 @@ select { width: auto; padding-right: 6px; }
 .slots { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 .slot { position: relative; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 4px; background: var(--panel-3); border: 1px solid var(--line); }
 .slot span { position: absolute; right: 3px; bottom: 1px; font: 700 11px var(--display); text-shadow: 0 0 3px #000; }
+.pill.update { cursor: pointer; border: 1px solid var(--good); color: var(--good); background: rgba(127, 208, 74, .1); font-weight: 600; }
+.pill.update[hidden] { display: none; }
 #escalation { position: fixed; z-index: 3000; top: 56px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; max-width: calc(100vw - 32px); padding: 10px 14px; border-radius: var(--radius); background: #3a0d08; border: 1px solid var(--accent); box-shadow: 0 0 40px rgba(224, 68, 47, .5); animation: alarm 1s infinite; }
 #escalation[hidden] { display: none; }
 #escalation b { font: 700 16px var(--display); letter-spacing: .08em; color: #ff8a72; white-space: nowrap; }

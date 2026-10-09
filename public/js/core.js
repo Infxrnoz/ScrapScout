@@ -811,6 +811,17 @@ function connect() {
     };
 }
 
+function showUpdate(u) {
+    const b = $('#update-pill');
+    b.hidden = !u;
+    if (!u) return;
+    b.textContent = `⬆ Update ${u.version} ready · restart`;
+    b.title = 'RustScout restarts in a few seconds with the new version';
+    b.onclick = () => window.desktop.updateInstall();
+}
+window.desktop?.updateGet?.().then(showUpdate).catch(() => {});
+window.desktop?.onUpdateReady?.(showUpdate);
+
 async function boot() {
     [S.items, S.raid, S.game] = await Promise.all(['items', 'raid', 'game'].map(f => fetch(`/data/${f}.json`).then(r => r.json())));
     bus.emit('ready');

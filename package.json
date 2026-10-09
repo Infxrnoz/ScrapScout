@@ -15,15 +15,17 @@
         "import-rustplusplus": "node scripts/import-rustplusplus.js",
         "package": "node scripts/package.js",
         "app": "electron .",
-        "dist": "electron-builder --win nsis",
+        "dist": "electron-builder --win nsis --publish never",
         "dist:personal": "electron-builder --win nsis -c.extraMetadata.rustscout.importOldVersion=true -c.win.artifactName=RustScout-Setup-${version}-personal.${ext}",
         "icon": "node desktop/make-icon.js",
-        "gamma": "C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe -nologo -optimize -target:exe -platform:x64 -r:System.Windows.Forms.dll -out:desktop\\gamma\\gamma.exe desktop\\gamma\\gamma.cs desktop\\gamma\\display.cs"
+        "gamma": "C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe -nologo -optimize -target:exe -platform:x64 -r:System.Windows.Forms.dll -out:desktop\\gamma\\gamma.exe desktop\\gamma\\gamma.cs desktop\\gamma\\display.cs",
+        "release": "node scripts/release.js"
     },
     "dependencies": {
         "@liamcottle/push-receiver": "^0.0.4",
         "@liamcottle/rustplus.js": "file:vendor/liamcottle-rustplus.js-2.5.0.tgz",
         "chrome-launcher": "^0.15.2",
+        "electron-updater": "^6.8.9",
         "express": "^4.21.2",
         "leaflet": "^1.9.4",
         "qrcode": "^1.5.4",
@@ -81,6 +83,14 @@
             {
                 "from": "desktop/gamma/gamma.exe",
                 "to": "gamma.exe"
+            }
+        ],
+        "publish": [
+            {
+                "provider": "github",
+                "owner": "Infxrnoz",
+                "repo": "rustscout-site",
+                "releaseType": "release"
             }
         ]
     },

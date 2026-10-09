@@ -18,5 +18,8 @@ contextBridge.exposeInMainWorld('desktop', {
     displayKeep: () => ipcRenderer.invoke('display-keep'),
     displayRevert: () => ipcRenderer.invoke('display-revert'),
     displayHdr: (device, on) => ipcRenderer.invoke('display-hdr', device, on),
-    onDisplayReverted: fn => ipcRenderer.on('display-reverted', () => fn())
+    onDisplayReverted: fn => ipcRenderer.on('display-reverted', () => fn()),
+    updateGet: () => ipcRenderer.invoke('update-get'),
+    updateInstall: () => ipcRenderer.invoke('update-install'),
+    onUpdateReady: fn => ipcRenderer.on('update-ready', (e, u) => fn(u))
 });
