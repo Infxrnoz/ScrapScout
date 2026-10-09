@@ -750,6 +750,7 @@ function applySnapshot(snap) {
     S.chat = snap?.chat ?? [];
     S.devices = snap?.devices ?? [];
     S.pins = snap?.pins ?? [];
+    S.automations = snap?.automations ?? [];
     renderInfo();
     if (!S.preview) loadMap(snap?.mapMeta ?? null);
     api('/api/pop').then(p => { S.pop = p; renderSparkline(); }).catch(() => {});
@@ -789,6 +790,7 @@ function connect() {
             case 'chatMessage': S.chat.push(msg.message); bus.emit('chat', msg.message); break;
             case 'devices': S.devices = msg.devices; bus.emit('devices'); break;
             case 'pins': S.pins = msg.pins; bus.emit('pins'); break;
+            case 'automations': S.automations = msg.automations; bus.emit('automations'); break;
             case 'threatsChanged': bus.emit('threatsChanged'); break;
             case 'escalation':
                 showEscalation(msg.escalation);

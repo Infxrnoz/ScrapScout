@@ -17,6 +17,7 @@ const browser = require('./src/browser');
 const rustmaps = require('./src/rustmaps');
 const terrain = require('./src/terrain');
 const { Tracking } = require('./src/tracking');
+const { Automations } = require('./src/automations');
 
 const ROOT = __dirname;
 const STATIC = path.join(ROOT, 'data');
@@ -28,7 +29,7 @@ const SERVERS_FILE = path.join(DATA, 'servers.json');
 const ALERT_KINDS = {
     teamDeath: 'Teammate died', teamOnline: 'Teammate online', teamOffline: 'Teammate offline', teamRespawn: 'Teammate respawned',
     killedBy: 'You were killed', alarm: 'Smart alarm', chat: 'Team chat', upkeep: 'TC upkeep low', watchWipe: 'Watched server wiped',
-    trackedOnline: 'Tracked player joined', trackedOffline: 'Tracked player left', decay: 'Decay timer', storage: 'Storage alert'
+    trackedOnline: 'Tracked player joined', trackedOffline: 'Tracked player left', decay: 'Decay timer', storage: 'Storage alert', automation: 'Automation ran'
 };
 const DEFAULT_ALERTS = Object.fromEntries(Object.keys(ALERT_KINDS).map(k => [k, {
     toast: !['teamRespawn', 'chat'].includes(k),
@@ -321,7 +322,8 @@ class Session {
         this.pop = new PopTracker(path.join(dir, 'pop.json'));
         this.devices = new Devices(path.join(dir, 'devices.json'));
         this.pins = new Pins(path.join(dir, 'pins.json'));
-        this.decayTimer = setInterval(() => this.checkDecay(), 30000);
+        this.automations = new Automations(path.join(dir, 'automations.json'));
+        this.decayTimer = setInterval(() => { this.checkDecay(); this.runAutomations('time'); }, 30000);
         this.upkeepWarned = new Set();
         this.connect();
     }
@@ -445,7 +447,10 @@ class Session {
             const { entityId, payload } = plain(b.entityChanged);
             const device = this.devices.get(entityId);
             if (!device) return;
-            if (this.devices.apply(entityId, payload)) alert('alarm', `${device.name} triggered`);
+            if (this.devices.apply(entityId, payload)) {
+                alert('alarm', `${device.name} triggered`);
+                this.runAutomations('alarm', { alarmId: entityId });
+            }
             this.checkStorage(entityId);
             this.pushDevices();
         }
@@ -505,6 +510,8 @@ class Session {
         const { teamInfo } = await this.request({ getTeamInfo: {} });
         this.state.team = plain(teamInfo);
         for (const e of this.teamTracker.update(this.state.team, Date.now(), this.state.mapMeta)) alert(e.kind, e.text, { x: e.x, y: e.y });
+        const anyOnline = (this.state.team.members || []).some(m => m.isOnline);
+        if (this.automations.changed('anyOnline', anyOnline)) this.runAutomations(anyOnline ? 'teamOnline' : 'teamOffline');
         broadcast({ type: 'team', team: this.state.team, teamLog: this.teamSnapshot() });
     }
 
@@ -519,6 +526,8 @@ class Session {
         this.timeSamples.push({ at: now, time: time.time });
         this.timeSamples = this.timeSamples.filter(s => now - s.at < 120000).slice(-8);
         this.state.time = { ...plain(time), sampledAt: now, secondsPerHour: this.secondsPerGameHour(time) };
+        const gt = this.gameTime();
+        if (gt && this.automations.changed('isDay', gt.isDay)) this.runAutomations(gt.isDay ? 'day' : 'night');
         broadcast({ type: 'time', time: this.state.time });
     }
 
@@ -628,6 +637,25 @@ class Session {
         if (due.length) this.pushPins();
     }
 
+    runAutomations(type, extra) {
+        if (!isPro() || this.closed) return;
+        const list = type === 'time' ? this.automations.dueAtClock() : this.automations.matching(type, extra);
+        for (const rule of list) this.runAutomation(rule).catch(e => log('automation failed:', errText(e)));
+    }
+
+    async runAutomation(rule) {
+        const failed = [];
+        for (const id of rule.action.ids) {
+            if (this.devices.get(id)?.type !== 'switch') { failed.push(id); continue; }
+            try { await this.setSwitch(id, rule.action.value); } catch { failed.push(id); }
+        }
+        this.automations.record(rule, { ok: !failed.length, failed });
+        broadcast({ type: 'automations', automations: this.automations.rules });
+        const done = rule.action.ids.length - failed.length;
+        alert('automation', `${rule.name}: ${done} switch${done === 1 ? '' : 'es'} ${rule.action.value ? 'on' : 'off'}${failed.length ? `, ${failed.length} failed` : ''}`);
+        return { done, failed };
+    }
+
     pushPins() {
         broadcast({ type: 'pins', pins: this.pins.list });
     }
@@ -649,7 +677,8 @@ class Session {
             chat: this.chat,
             teamLog: this.teamSnapshot(),
             devices: Object.values(this.devices.list),
-            pins: this.pins.list
+            pins: this.pins.list,
+            automations: this.automations.rules
         };
     }
 
@@ -659,7 +688,7 @@ class Session {
         clearTimeout(this.retryTimer);
         clearTimeout(this.connectTimer);
         clearInterval(this.decayTimer);
-        for (const p of [this.teamTracker.store, this.pop.store, this.devices.store, this.pins.store]) p.flush();
+        for (const p of [this.teamTracker.store, this.pop.store, this.devices.store, this.pins.store, this.automations.store]) p.flush();
         try { this.rp.disconnect(); } catch {  }
     }
 }
@@ -754,6 +783,17 @@ app.post('/api/devices', needSession, guard(async (req, res) => {
     await session.refreshDevice(entityId);
     session.pushDevices();
     res.json({ ok: true });
+}));
+app.get('/api/automations', needSession, (req, res) => res.json(session.automations.rules));
+app.put('/api/automations', needSession, needPro, guard(async (req, res) => {
+    const rules = session.automations.set(req.body?.rules);
+    broadcast({ type: 'automations', automations: rules });
+    res.json(rules);
+}));
+app.post('/api/automations/:id/run', needSession, needPro, guard(async (req, res) => {
+    const rule = session.automations.rules.find(r => r.id === req.params.id);
+    if (!rule) return res.status(404).json({ error: 'No such automation' });
+    res.json(await session.runAutomation(rule));
 }));
 app.put('/api/devices/:id/rules', needSession, needPro, (req, res) => {
     const rules = session.devices.setRules(req.params.id, req.body?.rules);
