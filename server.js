@@ -1211,7 +1211,7 @@ app.put('/api/settings', (req, res) => {
     const num = v => v !== '' && v !== null && v !== undefined && Number.isFinite(+v) && +v >= 0 ? +v : null;
     if (num(b.upkeepAlertHours) !== null) config.upkeepAlertHours = num(b.upkeepAlertHours);
     if (num(b.decayAlertMinutes) > 0) config.decayAlertMinutes = num(b.decayAlertMinutes);
-    if (b.escalation) {
+    if (b.escalation && isPro()) {
         const e = b.escalation, mention = String(e.mention ?? '').trim();
         if (mention && !mentionFor(mention)) return res.status(400).json({ error: 'Mention must be @here, @everyone, a role like <@&123…> or a user like <@123…>' });
         config.escalation = {
