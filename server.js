@@ -686,7 +686,8 @@ class Session {
             this.cam.isSubscribed = false;
             clearInterval(this.cam.subscribeInterval);
             const code = e?.error || errText(e);
-            throw new Error(code === 'no_player' ? 'Cameras only stream while you are in the game on this server. Join, then try again.'
+            throw new Error(code === 'player_online' ? 'Rust+ only shows cameras while you are logged out of this server. Leave the server (stay alive so your sleeper is there), then try again.'
+                : code === 'no_player' ? 'Your character isn\'t on this server right now (dead or not spawned). Log out alive as a sleeper, then cameras work while you are offline.'
                 : /not_found|no_camera|invalid/i.test(code) ? `No camera called ${id} here. Check the ID you set on the camera in game.` : `The server said: ${code}`);
         }
         const info = this.cam.cameraSubscribeInfo || {};
