@@ -2,6 +2,7 @@ const ITEMS = require('../data/items.json');
 const GAME = require('../data/game.json');
 const RAID = require('../data/raid.json');
 const { gridOf } = require('./geo');
+const { nextServerWipe } = require('../public/js/wipe');
 
 const dur = ms => {
     const s = Math.max(0, Math.round(ms / 1000));
@@ -43,7 +44,11 @@ const COMMANDS = {
 
     pop: ({ info }) => info ? `Pop ${info.players}/${info.maxPlayers}${info.queuedPlayers ? ` (+${info.queuedPlayers} queued)` : ''}` : 'No server info yet',
 
-    wipe: ({ info }) => info?.wipeTime ? `Wiped ${dur(Date.now() - info.wipeTime * 1000)} ago` : 'Wipe time unknown',
+    wipe: ({ info, mapMeta }) => {
+        const last = info?.wipeTime ? info.wipeTime * 1000 : null;
+        const next = nextServerWipe(last, mapMeta?.flags);
+        return `${last ? `Wiped ${dur(Date.now() - last)} ago` : 'Wipe time unknown'} | next ${next.forced ? 'forced wipe' : 'wipe'} in ${dur(next.at - Date.now())}`;
+    },
 
     time: ({ gameTime }) => {
         const t = gameTime();

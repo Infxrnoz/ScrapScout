@@ -502,6 +502,7 @@ class Session {
                 this.state.mapMeta.custom = d.customMap || this.state.mapMeta.custom;
                 this.state.mapMeta.rustMapsId = d.rustMapsId;
                 this.state.mapMeta.levelUrl = d.levelUrl;
+                this.state.mapMeta.flags = d.flags || [];
             }
         } catch {  }
     }

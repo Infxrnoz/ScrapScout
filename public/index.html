@@ -86,6 +86,10 @@
 
         <section data-panel="raid">
             <h2>Raid Cost Calculator</h2>
+            <details class="dropdown" id="raidtime" open>
+                <summary><span>Best time to raid</span><b id="raidtime-best"></b></summary>
+                <div class="pad"><div id="raidtime-grid"></div><p class="hint" id="raidtime-note"></p></div>
+            </details>
             <div class="seg" id="raid-style">
                 <button data-style="meta">Meta</button>
                 <button data-style="cheapest">Cheapest</button>
@@ -103,6 +107,7 @@
             <h2>Team</h2>
             <div class="stat-row" id="team-summary"></div>
             <div id="team-list" class="list"></div>
+            <div id="wipe-card" class="wipe-card"></div>
             <h3>Activity</h3>
             <div id="team-log" class="list log"></div>
         </section>
@@ -162,6 +167,15 @@
         </section>
 
         <section data-panel="tools">
+            <details class="dropdown" id="build-calc">
+                <summary><span>Build cost &amp; upkeep</span><b id="bc-summary"></b></summary>
+                <div class="pad">
+                    <div class="row wrap" id="bc-presets"></div>
+                    <div id="bc-rows"></div>
+                    <button class="btn ghost small" id="bc-add" type="button">+ Add pieces</button>
+                    <div id="bc-out"></div>
+                </div>
+            </details>
             <h2>Decay Tracker</h2>
             <p class="hint">Hit a decaying wall/door with a hammer, read its HP, and get a countdown to when it falls. Timers are saved per server and alert (toast + Discord) before it falls. Tip: right-click the map (long-press on a phone) to drop one right where the base is.</p>
             <form id="decay-form" class="form">
@@ -456,6 +470,8 @@
 <script src="/js/threats.js"></script>
 <script src="/js/tracked.js"></script>
 <script src="/js/events.js"></script>
+<script src="/js/wipe.js"></script>
+<script src="/js/planner.js"></script>
 <script src="/js/devices.js"></script>
 <script src="/js/automations.js"></script>
 <script src="/js/chat.js"></script>
