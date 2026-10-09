@@ -1,0 +1,96 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>RustScout stream overlay</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+    html, body { margin: 0; background: transparent; overflow: hidden; font: 600 15px/1.35 Inter, "Segoe UI", sans-serif; color: #ece7df; }
+    #wrap { position: fixed; display: flex; flex-direction: column; gap: 8px; width: 300px; transform-origin: top left; }
+    #wrap.right { right: 16px; transform-origin: top right; } #wrap.left { left: 16px; }
+    #wrap.top { top: 16px; } #wrap.bottom { bottom: 16px; flex-direction: column-reverse; }
+    .box { padding: 10px 12px; border-radius: 8px; background: rgba(11, 11, 12, .78); border: 1px solid rgba(255, 255, 255, .08); border-left: 3px solid #e0442f; text-shadow: 0 1px 2px #000; }
+    .head { font: 700 13px Rajdhani, sans-serif; letter-spacing: .14em; color: #8e8a84; text-transform: uppercase; margin-bottom: 4px; }
+    .big { font: 700 26px Rajdhani, sans-serif; }
+    .row { display: flex; justify-content: space-between; gap: 10px; white-space: nowrap; }
+    .muted { color: #a29d96; font-weight: 500; }
+    .warn { color: #f0b23c; } .bad { color: #ff6a4d; } .ok { color: #8fd45a; }
+    .member { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: #555; flex: none; }
+    .dot.on { background: #7fd04a; box-shadow: 0 0 6px #7fd04a; } .dot.dead { background: #e0442f; }
+    .alert { padding: 3px 0; font-size: 13px; animation: in .4s ease-out; }
+    .alert b { color: #ff7a2f; }
+    .brand { align-self: flex-end; padding: 3px 8px; border-radius: 6px; background: rgba(11, 11, 12, .7); font: 700 12px Rajdhani, sans-serif; letter-spacing: .12em; color: #ece7df; }
+    .brand em { font-style: normal; color: #e0442f; }
+    @keyframes in { from { opacity: 0; transform: translateX(10px); } }
+</style>
+</head>
+<body>
+<div id="wrap"></div>
+<script>
+'use strict';
+const q = new URLSearchParams(location.search);
+const WIDGETS = (q.get('w') || 'card,team,alerts').split(',');
+const S = { info: null, time: null, team: null, alerts: [], status: null, pro: false };
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const dur = ms => {
+    const s = Math.max(0, Math.round(ms / 1000)), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60);
+    return h ? `${h}h ${m}m` : m ? `${m}m ${s % 60}s` : `${s}s`;
+};
+const wrap = document.getElementById('wrap');
+wrap.className = `${q.get('corner') === 'top-left' || q.get('corner') === 'bottom-left' ? 'left' : 'right'} ${(q.get('corner') || 'top-right').startsWith('bottom') ? 'bottom' : 'top'}`;
+wrap.style.scale = Math.min(3, Math.max(0.5, Number(q.get('scale')) || 1));
+
+function clock() {
+    const t = S.time;
+    if (!t) return null;
+    const perHour = t.secondsPerHour || 150;
+    const now = (t.time + (Date.now() - t.sampledAt) / 1000 / perHour) % 24;
+    const isDay = now >= t.sunrise && now < t.sunset;
+    let dh = (isDay ? t.sunset : t.sunrise) - now;
+    if (dh < 0) dh += 24;
+    const h = Math.floor(now), m = Math.floor((now - h) * 60);
+    return { isDay, until: dh * perHour * 1000, text: `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}` };
+}
+
+function draw() {
+    const parts = [];
+    if (WIDGETS.includes('card')) {
+        const c = clock();
+        parts.push(`<div class="box"><div class="head">${S.info ? esc(S.info.name) : esc(S.status || 'Not connected')}</div>
+            ${S.info ? `<div class="row"><span class="big">${S.info.players}<span class="muted">/${S.info.maxPlayers}</span></span>${S.info.queuedPlayers ? `<span class="warn">+${S.info.queuedPlayers} queue</span>` : ''}</div>` : ''}
+            ${c ? `<div class="row"><span>${c.isDay ? '☀' : '🌙'} ${c.text}</span><span class="${c.isDay && c.until < 120e3 ? 'warn' : 'muted'}">${c.isDay ? 'night' : 'day'} in ${dur(c.until)}</span></div>` : ''}</div>`);
+    }
+    if (WIDGETS.includes('team') && S.team?.members?.length) {
+        parts.push(`<div class="box"><div class="head">Team ${S.team.members.filter(m => m.isOnline).length}/${S.team.members.length}</div>${S.team.members.map(m =>
+            `<div class="member"><span class="dot ${!m.isOnline ? '' : m.isAlive ? 'on' : 'dead'}"></span><span class="${m.isOnline ? '' : 'muted'}">${esc(m.name)}</span></div>`).join('')}</div>`);
+    }
+    const fresh = S.alerts.filter(a => Date.now() - a.shown < 20000).slice(0, 4);
+    if (WIDGETS.includes('alerts') && fresh.length) {
+        parts.push(`<div class="box">${fresh.map(a => `<div class="alert"><b>${esc(a.label || a.kind)}</b> ${esc(a.text)}</div>`).join('')}</div>`);
+    }
+    if (!S.pro || q.get('brand') !== '0') parts.push('<div class="brand">RUST<em>SCOUT</em> · rust-scout.app</div>');
+    wrap.innerHTML = parts.join('');
+}
+
+function connect() {
+    const ws = new WebSocket(`ws://${location.host}/ws`);
+    ws.onmessage = ev => {
+        const m = JSON.parse(ev.data);
+        if (m.type === 'reset') Object.assign(S, { info: m.snapshot?.info ?? null, time: m.snapshot?.time ?? null, team: m.snapshot?.team ?? null, status: m.snapshot?.status ?? null });
+        else if (m.type === 'info') S.info = m.info;
+        else if (m.type === 'time') S.time = m.time;
+        else if (m.type === 'team') S.team = m.team;
+        else if (m.type === 'status') S.status = m.status;
+        else if (m.type === 'alert' && !['chat'].includes(m.alert.kind)) S.alerts.unshift({ ...m.alert, shown: Date.now() });
+        S.alerts = S.alerts.slice(0, 10);
+        draw();
+    };
+    ws.onclose = () => setTimeout(connect, 3000);
+}
+fetch('/api/license').then(r => r.json()).then(l => { S.pro = !!l.pro; draw(); }).catch(() => {});
+setInterval(draw, 1000);
+connect();
+</script>
+</body>
+</html>

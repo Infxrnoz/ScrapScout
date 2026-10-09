@@ -92,6 +92,16 @@
         } catch (e) { toast({ kind: 'alarm', label: 'Not saved', text: e.message }); }
     }
 
+    const streamUrl = () => {
+        const w = $$('#stream-builder [data-w]').filter(c => c.checked).map(c => c.dataset.w).join(',') || 'card';
+        const p = new URLSearchParams({ w, corner: $('#stream-corner').value, scale: $('#stream-scale').value || '1' });
+        if (S.pro && !$('#stream-brand').checked) p.set('brand', '0');
+        $('#stream-url').value = `http://${location.host}/stream.html?${p}`;
+    };
+    $$('#stream-builder input, #stream-builder select').forEach(el => el.oninput = el.onchange = streamUrl);
+    bus.on('pro', () => { $('#stream-brand').disabled = !S.pro; if (!S.pro) $('#stream-brand').checked = true; streamUrl(); });
+    $('#stream-copy').onclick = () => navigator.clipboard?.writeText($('#stream-url').value).then(() => toast({ kind: 'teamOnline', label: 'Copied', text: 'Paste it into an OBS Browser source' }));
+    streamUrl();
     $('#settings-save').onclick = saveSettings;
     $('#esc-test').onclick = () => api('/api/escalation/test', { method: 'POST' }).catch(e => toast({ kind: 'alarm', label: 'Test failed', text: e.message }));
     $('#webhook-test').onclick = async () => {

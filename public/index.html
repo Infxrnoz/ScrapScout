@@ -434,6 +434,15 @@
             </section>
             <button class="btn" id="settings-save" style="margin-top:10px;width:100%">Save settings</button>
 
+            <h2>Stream overlay (OBS)</h2>
+            <p class="hint">Show your server, team and alerts on stream. In OBS: <b>Sources → + → Browser</b>, paste the link, set width 400 and height 600. The background is see-through.</p>
+            <div class="form" id="stream-builder">
+                <div class="row wrap"><label class="check"><input type="checkbox" data-w="card" checked> Server card</label><label class="check"><input type="checkbox" data-w="team" checked> Team</label><label class="check"><input type="checkbox" data-w="alerts" checked> Alerts</label></div>
+                <div class="row"><label class="field">Corner<select id="stream-corner"><option value="top-right">Top right</option><option value="top-left">Top left</option><option value="bottom-right">Bottom right</option><option value="bottom-left">Bottom left</option></select></label><label class="field">Size<input id="stream-scale" type="number" min="0.5" max="3" step="0.1" value="1" class="num"></label></div>
+                <label class="check"><input type="checkbox" id="stream-brand" checked> Show the RustScout credit <span class="tag gold">PRO to hide</span></label>
+                <div class="row"><input id="stream-url" readonly><button class="btn small" id="stream-copy" type="button">Copy</button></div>
+                <p class="hint">Streaming your team's positions invites stream snipers, so the overlay never shows the map.</p>
+            </div>
             <h2>Removed by Facepunch</h2>
             <p class="hint">On <b>6 August 2026</b> Facepunch removed shops (vending machines) and map events (patrol heli, cargo ship, Chinook, locked crates, explosions, travelling vendor, oil rigs and airdrops) from Rust+. No companion app can see them anymore, so RustScout no longer has the Shops tab, sulfur sale tracking, raid targets, event timers, event alerts, or the chat commands for them (<code>!events</code> <code>!cargo</code> <code>!heli</code> <code>!chinook</code> <code>!vendor</code> <code>!crate</code> <code>!oil</code> <code>!small</code> <code>!large</code> <code>!airdrop</code> <code>!shop</code> <code>!sulfur</code>). If Facepunch brings that data back, those features will come back too.</p>
         </section>
