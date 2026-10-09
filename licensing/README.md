@@ -64,6 +64,16 @@ Signs an activation for this PC with your private key and writes it to your Rust
    ```
    Only full refunds turn a key off. The app checks in at start and every 12 hours, so Pro switches off on that PC soon after.
 
+## Team keys (duo, trio, quad)
+
+One key that works on several PCs at once. Make a Payment Link per team size in Stripe (same redirect as above), then tell the worker which link is which size:
+
+```
+npx wrangler secret put TEAM_LINKS
+```
+
+and paste something like `{"plink_duoID":2,"plink_trioID":3,"plink_quadID":4}`. Keys bought through those links work on that many PCs; the success page tells the buyer to share it with their team. By hand: `node licensing/issue.js "their@email.com" 4`.
+
 ## Turn a key off by hand
 
 ```

@@ -12,32 +12,47 @@ const json = (body, status = 200) => new Response(JSON.stringify(body), { status
 const unb64url = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
 const sha256 = async text => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)))].map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
 
-async function validKey(key) {
+async function readKey(key) {
     const m = /^RS1-([\w-]+)\.([\w-]+)$/.exec(key);
-    if (!m) return false;
+    if (!m) return null;
     const pub = await crypto.subtle.importKey('spki', unb64url(PUBLIC_KEY.replace(/=+$/, '')), { name: 'Ed25519' }, false, ['verify']);
-    if (!(await crypto.subtle.verify('Ed25519', pub, unb64url(m[2]), new TextEncoder().encode(m[1])))) return false;
+    if (!(await crypto.subtle.verify('Ed25519', pub, unb64url(m[2]), new TextEncoder().encode(m[1])))) return null;
     let p;
-    try { p = JSON.parse(new TextDecoder().decode(unb64url(m[1]))); } catch { return false; }
-    return typeof p.e === 'string' && typeof p.s === 'string' && p.m === undefined;
+    try { p = JSON.parse(new TextDecoder().decode(unb64url(m[1]))); } catch { return null; }
+    return typeof p.e === 'string' && typeof p.s === 'string' && p.m === undefined ? p : null;
 }
+const validKey = async key => !!(await readKey(key));
+const seatsOf = p => Math.min(10, Math.max(1, Math.floor(Number(p.n) || 1)));
 
 async function activation(request, env, action) {
     const { key, machine } = await request.json().catch(() => ({}));
-    if (typeof key !== 'string' || !/^[0-9a-f]{32}$/.test(String(machine)) || !(await validKey(key.trim()))) return json({ error: 'That key isn’t valid.' }, 400);
+    const p = typeof key === 'string' && /^[0-9a-f]{32}$/.test(String(machine)) ? await readKey(key.trim()) : null;
+    if (!p) return json({ error: 'That key isn’t valid.' }, 400);
+    const seats = seatsOf(p);
     const id = await sha256(key.trim());
-    const rec = JSON.parse(await env.LICENSES.get(id) || 'null') || { m: null, moves: [] };
+    const rec = JSON.parse(await env.LICENSES.get(id) || 'null') || { moves: [] };
+    const machines = rec.ms || (rec.m ? [rec.m] : []);
     const now = Date.now();
-    const recentMoves = rec.moves.filter(t => now - t < 30 * 86400e3);
+    const recentMoves = (rec.moves || []).filter(t => now - t < 30 * 86400e3);
+    const save = (ms, moves) => {
+        const { m, ...rest } = rec;
+        return env.LICENSES.put(id, JSON.stringify({ ...rest, ms, moves }));
+    };
     if (action === 'deactivate') {
-        if (rec.m !== machine) return json({ error: 'This key isn’t active on this PC.' }, 409);
-        await env.LICENSES.put(id, JSON.stringify({ m: null, moves: [...recentMoves, now] }));
+        if (!machines.includes(machine)) return json({ error: 'This key isn’t active on this PC.' }, 409);
+        await save(machines.filter(x => x !== machine), [...recentMoves, now]);
         return json({ ok: true });
     }
     if (rec.revoked) return json({ error: 'This key has been disabled. Contact support if you think that’s a mistake.' }, 403);
-    if (rec.m && rec.m !== machine) return json({ error: 'This key is already activated on another PC. Remove it there first (Settings → RustScout Pro → Remove key).' }, 409);
-    if (!rec.m && recentMoves.length > MOVES_PER_30_DAYS) return json({ error: 'This key has moved PCs too often this month. Try again later or contact support.' }, 429);
-    if (rec.m !== machine) await env.LICENSES.put(id, JSON.stringify({ m: machine, moves: recentMoves }));
+    if (!machines.includes(machine)) {
+        if (machines.length >= seats) {
+            return json({ error: seats === 1
+                ? 'This key is already activated on another PC. Remove it there first (Settings → RustScout Pro → Remove key).'
+                : `This key is already on ${seats} PCs, the most it covers. Remove it from one of them first.` }, 409);
+        }
+        if (recentMoves.length > MOVES_PER_30_DAYS * seats) return json({ error: 'This key has moved PCs too often this month. Try again later or contact support.' }, 429);
+        await save([...machines, machine], recentMoves);
+    }
     const payload = b64url(new TextEncoder().encode(JSON.stringify({ k: id, m: machine, t: Math.floor(now / 1000) })));
     return json({ activation: `RA1-${payload}.${await sign(payload, env.LICENSE_PRIVATE_KEY)}` });
 }
@@ -47,12 +62,16 @@ async function stripe(env, path) {
     return r.ok ? r.json() : null;
 }
 
+const teamLinks = env => { try { return JSON.parse(env.TEAM_LINKS || '{}'); } catch { return {}; } };
+const seatsFor = (session, env) => Number(teamLinks(env)[session.payment_link]) || 1;
+
 async function keyFor(session, env) {
-    const payload = b64url(new TextEncoder().encode(JSON.stringify({ e: session.customer_details?.email || '', s: session.id, t: session.created })));
+    const seats = seatsFor(session, env);
+    const payload = b64url(new TextEncoder().encode(JSON.stringify({ e: session.customer_details?.email || '', s: session.id, t: session.created, ...(seats > 1 ? { n: seats } : {}) })));
     return `RS1-${payload}.${await sign(payload, env.LICENSE_PRIVATE_KEY)}`;
 }
 
-const ours = (session, env) => !env.PAYMENT_LINK_ID || session.payment_link === env.PAYMENT_LINK_ID;
+const ours = (session, env) => (!env.PAYMENT_LINK_ID && !env.TEAM_LINKS) || session.payment_link === env.PAYMENT_LINK_ID || seatsFor(session, env) > 1;
 
 async function revoke(env, id) {
     const rec = JSON.parse(await env.LICENSES.get(id) || 'null') || { m: null, moves: [] };
@@ -107,7 +126,7 @@ export default {
         if (rec?.revoked) return page('Key disabled', '<p>This purchase was refunded or disputed, so its key no longer works. If that’s a mistake, open a ticket in our Discord.</p>');
         return page('Thanks for getting RustScout Pro!', `<p>Your licence key:</p>
 <textarea readonly rows="5" style="width:100%;background:#141416;color:#ece7df;border:1px solid #37373d;border-radius:6px;padding:10px;font:13px monospace">${esc(key)}</textarea>
-<p>In RustScout: <b>Settings → RustScout Pro</b>, paste the key and click <b>Activate</b>.</p>
+<p>In RustScout: <b>Settings → RustScout Pro</b>, paste the key and click <b>Activate</b>.${seatsFor(session, env) > 1 ? ` This is a team key: share it with your team, it works on ${seatsFor(session, env)} PCs at once.` : ''}</p>
 <p style="color:#8e8a84">Bookmark this page: opening it again shows the same key.</p>`);
     }
 };

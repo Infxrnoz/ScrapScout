@@ -1217,7 +1217,7 @@ setInterval(recheckLicense, 12 * 3600e3).unref();
 
 startDiscordBot();
 startPhone();
-app.get('/api/license', (req, res) => res.json({ pro: isPro(), email: license()?.e ?? null, needsActivation: !!license() && !activated() }));
+app.get('/api/license', (req, res) => res.json({ pro: isPro(), email: license()?.e ?? null, seats: license()?.n || 1, needsActivation: !!license() && !activated() }));
 app.post('/api/license', guard(async (req, res) => {
     const key = String(req.body?.key || config.licenseKey || '').trim();
     if (!readLicense(key)) return res.status(400).json({ error: 'That key isn’t valid. Copy the whole key, starting with RS1-' });

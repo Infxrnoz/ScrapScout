@@ -10,7 +10,7 @@ window.pro = (() => {
         S.pro = !!l.pro;
         bus.emit('pro');
         q('#pro-status').innerHTML = l.pro
-            ? `<b class="ok">Pro is active</b>${l.email ? ` for ${l.email.replace(/[&<>"]/g, '')}` : ''}. Thanks for supporting RustScout!`
+            ? `<b class="ok">Pro is active</b>${l.email ? ` for ${l.email.replace(/[&<>"]/g, '')}` : ''}${l.seats > 1 ? ` · team key for ${l.seats} PCs, share it with your team` : ''}. Thanks for supporting RustScout!`
             : l.needsActivation ? 'Your Pro key isn’t activated on this PC yet. Click <b>Activate</b> (needs internet once). Each key works on one PC at a time.'
             : PERKS;
         q('#pro-enter').hidden = l.pro;
