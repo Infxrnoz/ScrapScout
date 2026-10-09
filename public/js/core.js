@@ -737,7 +737,7 @@ $('#panel-toggle').onclick = () => {
 };
 bus.on('tab:breeder', () => $('#panel').classList.add('wide'));
 bus.on('tab:power', () => $('#panel').classList.add('wide'));
-for (const t of ['browse', 'shops', 'raid', 'team', 'threats', 'tracked', 'events', 'devices', 'chat', 'tools', 'recycle', 'settings']) {
+for (const t of ['browse', 'shops', 'raid', 'team', 'threats', 'tracked', 'events', 'devices', 'cameras', 'chat', 'tools', 'recycle', 'settings']) {
     bus.on(`tab:${t}`, () => $('#panel').classList.remove('wide'));
 }
 
@@ -791,6 +791,8 @@ function connect() {
             case 'devices': S.devices = msg.devices; bus.emit('devices'); break;
             case 'pins': S.pins = msg.pins; bus.emit('pins'); break;
             case 'automations': S.automations = msg.automations; bus.emit('automations'); break;
+            case 'camera': bus.emit('camera', msg.camera); break;
+            case 'cameraFrame': bus.emit('cameraFrame', msg); break;
             case 'threatsChanged': bus.emit('threatsChanged'); break;
             case 'escalation':
                 showEscalation(msg.escalation);

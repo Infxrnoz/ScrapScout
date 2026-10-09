@@ -278,6 +278,19 @@ select { width: auto; padding-right: 6px; }
 .slots { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 .slot { position: relative; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 4px; background: var(--panel-3); border: 1px solid var(--line); }
 .slot span { position: absolute; right: 3px; bottom: 1px; font: 700 11px var(--display); text-shadow: 0 0 3px #000; }
+.cam-view { position: relative; aspect-ratio: 16 / 9; margin: 6px 0; border-radius: var(--radius); background: #000; overflow: hidden; touch-action: none; cursor: grab; }
+.cam-view img { width: 100%; height: 100%; object-fit: cover; image-rendering: auto; display: block; }
+.cam-view img:not([src]) { display: none; }
+.cam-msg { position: absolute; inset: 0; display: grid; place-items: center; padding: 12px; text-align: center; color: var(--muted); font-size: 12px; }
+.cam-msg[hidden] { display: none; }
+.cam-group { margin-bottom: 6px; }
+.cam-group b { font-size: 11px; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.chip { padding: 3px 8px; border-radius: 12px; background: var(--panel-3); border: 1px solid var(--line); color: var(--text); font: 600 10px var(--font); cursor: pointer; }
+.chip.on { border-color: var(--accent); color: #ff8a72; }
+.chip-wrap { display: inline-flex; align-items: center; }
+#cam-turret { display: inline-flex; align-items: center; gap: 4px; }
+#cam-turret[hidden], #cam-controls[hidden] { display: none; }
 .pill.update { cursor: pointer; border: 1px solid var(--good); color: var(--good); background: rgba(127, 208, 74, .1); font-weight: 600; }
 .pill.update[hidden] { display: none; }
 #escalation { position: fixed; z-index: 3000; top: 56px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; max-width: calc(100vw - 32px); padding: 10px 14px; border-radius: var(--radius); background: #3a0d08; border: 1px solid var(--accent); box-shadow: 0 0 40px rgba(224, 68, 47, .5); animation: alarm 1s infinite; }

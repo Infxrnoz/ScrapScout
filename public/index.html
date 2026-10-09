@@ -37,6 +37,7 @@
         <button data-panel="threats" data-tip="Threats"><svg viewBox="0 0 24 24"><path d="M12 2a8 8 0 0 0-8 8c0 3 1.5 5 3 6v3h2v-2h2v2h2v-2h2v2h2v-3c1.5-1 3-3 3-6a8 8 0 0 0-8-8zm-3 7a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm6 0a2 2 0 1 1 0 4 2 2 0 0 1 0-4z"/></svg></button>
         <button data-panel="tracked" data-tip="Tracked players"><svg viewBox="0 0 24 24"><path d="M11 2v3.1A7 7 0 0 0 5.1 11H2v2h3.1a7 7 0 0 0 5.9 5.9V22h2v-3.1a7 7 0 0 0 5.9-5.9H22v-2h-3.1A7 7 0 0 0 13 5.1V2h-2zm1 5a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 3a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg></button>
         <button data-panel="events" data-tip="Alerts & map layers"><svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7v4l-2 3v1h18v-1l-2-3V9a7 7 0 0 0-7-7zm-2 17a2 2 0 0 0 4 0h-4z"/></svg></button>
+        <button data-panel="cameras" data-tip="Cameras"><svg viewBox="0 0 24 24"><path d="M4 7h11a2 2 0 0 1 2 2v1.5l4-2.5v8l-4-2.5V15a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z"/></svg></button>
         <button data-panel="devices" data-tip="Smart devices"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg></button>
         <button data-panel="chat" data-tip="Team chat & bot"><svg viewBox="0 0 24 24"><path d="M3 4h18v12H8l-5 4V4zm4 5v2h2V9H7zm4 0v2h2V9h-2zm4 0v2h2V9h-2z"/></svg></button>
         <div class="rail-sep"></div>
@@ -141,6 +142,20 @@
             <div id="layer-toggles" class="two-col"></div>
         </section>
 
+        <section data-panel="cameras">
+            <h2>Cameras</h2>
+            <p class="hint">Watch CCTV, PTZ cameras and your auto turrets through Rust+. They only stream while you are in the game on this server.</p>
+            <div id="cam-view" class="cam-view"><img id="cam-img" alt=""><div id="cam-msg" class="cam-msg">Pick a camera below.</div></div>
+            <div id="cam-controls" class="row wrap" hidden>
+                <button class="btn ghost small" data-move="-20,0">◀</button><button class="btn ghost small" data-move="0,-20">▲</button><button class="btn ghost small" data-move="0,20">▼</button><button class="btn ghost small" data-move="20,0">▶</button>
+                <button class="btn ghost small" data-cam="zoom">Zoom</button>
+                <span id="cam-turret" hidden><label class="check"><input type="checkbox" id="cam-arm"> Allow firing</label><button class="btn small" data-cam="shoot" disabled>Fire</button><button class="btn ghost small" data-cam="reload">Reload</button></span>
+                <button class="btn ghost small" id="cam-stop">Stop</button>
+            </div>
+            <p class="hint" id="cam-tip" hidden>Drag on the picture to look around.</p>
+            <form id="cam-add" class="row"><input name="id" placeholder="Your camera ID (set it on the camera in game)" maxlength="32" required><button class="btn small">Add</button></form>
+            <div id="cam-list"></div>
+        </section>
         <section data-panel="devices">
             <div class="row-between"><h2>Smart Devices</h2><button class="btn ghost small" id="device-refresh">Refresh</button></div>
             <div id="device-list"></div>
@@ -495,6 +510,7 @@
 <script src="/js/planner.js"></script>
 <script src="/js/devices.js"></script>
 <script src="/js/automations.js"></script>
+<script src="/js/cameras.js"></script>
 <script src="/js/chat.js"></script>
 <script src="/js/scan.js"></script>
 <script src="/js/pins.js"></script>

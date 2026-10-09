@@ -341,6 +341,8 @@ class Session {
 
     connect() {
         const s = this.server;
+        this.cam = null;
+        this.camState = null;
         this.rp = new RustPlus(s.ip, s.port, s.playerId, s.playerToken);
         this.rp.on('connected', () => {
             clearTimeout(this.connectTimer);
@@ -668,6 +670,52 @@ class Session {
         return { done, failed };
     }
 
+    async cameraStart(id) {
+        if (this.closed || !this.rp.websocket) throw new Error('Not connected to the server');
+        await this.cameraStop();
+        if (!this.cam) {
+            this.cam = this.rp.getCamera(id);
+            this.cam.on('render', png => {
+                if (this.camState) broadcast({ type: 'cameraFrame', id: this.camState.id, png: png.toString('base64') });
+            });
+        }
+        this.cam.identifier = id;
+        try {
+            await this.cam.subscribe();
+        } catch (e) {
+            this.cam.isSubscribed = false;
+            clearInterval(this.cam.subscribeInterval);
+            const code = e?.error || errText(e);
+            throw new Error(code === 'no_player' ? 'Cameras only stream while you are in the game on this server. Join, then try again.'
+                : /not_found|no_camera|invalid/i.test(code) ? `No camera called ${id} here. Check the ID you set on the camera in game.` : `The server said: ${code}`);
+        }
+        const info = this.cam.cameraSubscribeInfo || {};
+        this.camState = { id, width: info.width, height: info.height, turret: this.cam.isAutoTurret(), controls: info.controlFlags || 0, since: Date.now() };
+        clearTimeout(this.camIdle);
+        this.camIdle = setTimeout(() => this.cameraStop().catch(() => {}), 10 * 60e3);
+        broadcast({ type: 'camera', camera: this.camState });
+        return this.camState;
+    }
+
+    async cameraStop() {
+        clearTimeout(this.camIdle);
+        if (this.cam?.isSubscribed) await this.cam.unsubscribe().catch(() => {});
+        if (this.camState) broadcast({ type: 'camera', camera: null });
+        this.camState = null;
+    }
+
+    async cameraInput(action, x = 0, y = 0) {
+        if (!this.camState || !this.cam?.isSubscribed) throw new Error('No camera is open');
+        clearTimeout(this.camIdle);
+        this.camIdle = setTimeout(() => this.cameraStop().catch(() => {}), 10 * 60e3);
+        const clamp = v => Math.max(-50, Math.min(50, Number(v) || 0));
+        if (action === 'move') return this.cam.move(0, clamp(x), clamp(y));
+        if (action === 'zoom') return this.cam.zoom();
+        if (action === 'shoot' && this.camState.turret) return this.cam.shoot();
+        if (action === 'reload' && this.camState.turret) return this.cam.reload();
+        throw new Error('That camera can not do that');
+    }
+
     pushPins() {
         broadcast({ type: 'pins', pins: this.pins.list });
     }
@@ -690,7 +738,8 @@ class Session {
             teamLog: this.teamSnapshot(),
             devices: Object.values(this.devices.list),
             pins: this.pins.list,
-            automations: this.automations.rules
+            automations: this.automations.rules,
+            camera: this.camState
         };
     }
 
@@ -700,6 +749,7 @@ class Session {
         clearTimeout(this.retryTimer);
         clearTimeout(this.connectTimer);
         clearInterval(this.decayTimer);
+        this.cameraStop().catch(() => {});
         for (const p of [this.teamTracker.store, this.pop.store, this.devices.store, this.pins.store, this.automations.store]) p.flush();
         try { this.rp.disconnect(); } catch {  }
     }
@@ -727,7 +777,7 @@ app.use((req, res, next) => fromApp(req) ? next() : res.status(403).end());
 app.use(express.json());
 app.use(express.static(path.join(ROOT, 'public')));
 app.use('/vendor/leaflet', express.static(path.join(ROOT, 'node_modules', 'leaflet', 'dist')));
-for (const f of ['items.json', 'raid.json', 'game.json', 'ores.json']) app.get(`/data/${f}`, (req, res) => res.sendFile(path.join(STATIC, f)));
+for (const f of ['items.json', 'raid.json', 'game.json', 'ores.json', 'cctv.json']) app.get(`/data/${f}`, (req, res) => res.sendFile(path.join(STATIC, f)));
 
 const needSession = (req, res, next) => session ? next() : res.status(409).json({ error: 'No server connected' });
 const guard = fn => async (req, res) => {
@@ -795,6 +845,17 @@ app.post('/api/devices', needSession, guard(async (req, res) => {
     await session.refreshDevice(entityId);
     session.pushDevices();
     res.json({ ok: true });
+}));
+const CAMERA_ID = /^[\w-]{1,32}$/;
+app.post('/api/camera', needSession, needPro, guard(async (req, res) => {
+    const id = String(req.body?.id || '').trim().toUpperCase();
+    if (!CAMERA_ID.test(id)) return res.status(400).json({ error: 'Camera IDs are letters, numbers, - and _ (up to 32)' });
+    try { res.json(await session.cameraStart(id)); } catch (e) { res.status(409).json({ error: e.message }); }
+}));
+app.delete('/api/camera', needSession, guard(async (req, res) => { await session.cameraStop(); res.json({ ok: true }); }));
+app.post('/api/camera/input', needSession, needPro, guard(async (req, res) => {
+    try { await session.cameraInput(String(req.body?.action), req.body?.x, req.body?.y); res.json({ ok: true }); }
+    catch (e) { res.status(409).json({ error: e.message?.error || e.message || String(e) }); }
 }));
 app.get('/api/automations', needSession, (req, res) => res.json(session.automations.rules));
 app.put('/api/automations', needSession, needPro, guard(async (req, res) => {

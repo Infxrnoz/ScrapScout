@@ -63,7 +63,8 @@
             "data/spawns.json",
             "data/facilities.json",
             "data/craft-yields.json",
-            "data/monuments.json"
+            "data/monuments.json",
+            "data/cctv.json"
         ],
         "win": {
             "target": "nsis",
