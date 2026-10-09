@@ -1,6 +1,6 @@
 window.pro = (() => {
     const BUY_URL = '';
-    const LOCKED = ['#appearance-settings', '#color-settings', '#overlay-settings', '#discord-settings', '#escalation-settings',
+    const LOCKED = ['#appearance-settings', '#color-settings', '#overlay-settings', '#discord-settings', '#escalation-settings', '#phone-settings',
         ...['browse', 'raid', 'tracked', 'tools', 'recycle', 'breeder', 'power', 'display'].map(p => `section[data-panel="${p}"]`)];
     const PERKS = 'Pro unlocks the calculators, decay timers and pins, the server browser and map files, tracked players, killer stats on Threats, Discord alerts and bot, the in-game overlay, colour profiles, display settings (resolution, refresh rate, HDR, stretched 4:3) and Appearance. Each key works on one PC at a time.';
     const q = s => document.querySelector(s);

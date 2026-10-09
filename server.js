@@ -18,6 +18,7 @@ const rustmaps = require('./src/rustmaps');
 const terrain = require('./src/terrain');
 const { Tracking } = require('./src/tracking');
 const { Automations } = require('./src/automations');
+const { PhoneServer } = require('./src/phone');
 
 const ROOT = __dirname;
 const STATIC = path.join(ROOT, 'data');
@@ -51,6 +52,7 @@ const DEFAULT_CONFIG = {
     upkeepAlertHours: 3,
     decayAlertMinutes: 30,
     escalation: { enabled: false, repeatMinutes: 2, maxRepeats: 5, mention: '@here', sound: true },
+    phone: { enabled: false, token: '' },
     alerts: DEFAULT_ALERTS
 };
 
@@ -80,6 +82,7 @@ const config = {
     bot: { ...DEFAULT_CONFIG.bot, ...loaded.bot },
     discordBot: { ...DEFAULT_CONFIG.discordBot, ...loaded.discordBot },
     escalation: { ...DEFAULT_CONFIG.escalation, ...loaded.escalation },
+    phone: { ...DEFAULT_CONFIG.phone, ...loaded.phone },
     alerts: Object.fromEntries(Object.keys(ALERT_KINDS).map(k => [k, { ...DEFAULT_ALERTS[k], ...loaded.alerts?.[k] }]))
 };
 const saveConfig = () => writeJson(CONFIG_FILE, { ...config, port: loaded.port ?? config.port });
@@ -107,9 +110,17 @@ const fromApp = req => {
 const wss = new WebSocketServer({ server: httpServer, path: '/ws', verifyClient: ({ req }) => fromApp(req) });
 wss.on('error', () => {});
 
+const phone = new PhoneServer({
+    root: path.join(ROOT, 'public'), leafletDir: path.join(ROOT, 'node_modules', 'leaflet', 'dist'), log,
+    mapFile: () => session && fs.existsSync(path.join(serverDir(session.server.id), 'map.jpg')) ? path.join(serverDir(session.server.id), 'map.jpg') : null,
+    pop: () => session ? session.pop.store.data.samples : [],
+    snapshot: () => session?.snapshot() ?? null
+});
+
 const broadcast = msg => {
     const text = JSON.stringify(msg);
     for (const ws of wss.clients) if (ws.readyState === 1) ws.send(text);
+    phone.send(text);
 };
 
 let discordBot = null;
@@ -1011,6 +1022,36 @@ async function discordCommand(cmd, args, msg) {
     return chatbot.handle(`${p}${cmd} ${args.join(' ')}`.trim(), p, session.botContext());
 }
 
+
+function startPhone() {
+    if (!config.phone.enabled || !isPro()) return phone.stop();
+    if (!/^[0-9a-f]{64}$/.test(config.phone.token)) {
+        config.phone.token = require('crypto').randomBytes(32).toString('hex');
+        saveConfig();
+    }
+    if (phone.status !== 'on' || phone.token !== config.phone.token) phone.start(config.port + 1, config.phone.token);
+}
+
+const phoneInfo = () => ({ enabled: config.phone.enabled, status: phone.status, port: config.port + 1, links: phone.status === 'on' ? phone.links() : [] });
+app.get('/api/phone', (req, res) => res.json(phoneInfo()));
+app.put('/api/phone', needPro, (req, res) => {
+    config.phone.enabled = !!req.body?.enabled;
+    saveConfig();
+    startPhone();
+    setTimeout(() => res.json(phoneInfo()), 300);
+});
+app.post('/api/phone/new-link', needPro, (req, res) => {
+    config.phone.token = require('crypto').randomBytes(32).toString('hex');
+    saveConfig();
+    startPhone();
+    setTimeout(() => res.json(phoneInfo()), 300);
+});
+app.get('/api/phone/qr.svg', guard(async (req, res) => {
+    const link = phone.status === 'on' ? phone.links()[Number(req.query.i) || 0] : null;
+    if (!link) return res.sendStatus(404);
+    res.type('image/svg+xml').set('Cache-Control', 'no-store').send(await require('qrcode').toString(link, { type: 'svg', margin: 1, color: { dark: '#000000', light: '#ffffff' } }));
+}));
+
 function startDiscordBot() {
     discordBot?.stop();
     discordBot = null;
@@ -1164,6 +1205,7 @@ async function recheckLicense() {
         config.licenseActivation = '';
         saveConfig();
         startDiscordBot();
+        startPhone();
         log(`RustScout Pro turned off: ${r.error}`);
         return;
     }
@@ -1174,6 +1216,7 @@ recheckLicense();
 setInterval(recheckLicense, 12 * 3600e3).unref();
 
 startDiscordBot();
+startPhone();
 app.get('/api/license', (req, res) => res.json({ pro: isPro(), email: license()?.e ?? null, needsActivation: !!license() && !activated() }));
 app.post('/api/license', guard(async (req, res) => {
     const key = String(req.body?.key || config.licenseKey || '').trim();
@@ -1186,6 +1229,7 @@ app.post('/api/license', guard(async (req, res) => {
     config.licenseActivation = r.activation;
     saveConfig();
     startDiscordBot();
+    startPhone();
     res.json({ pro: true, email: readLicense(key).e ?? null });
 }));
 app.delete('/api/license', guard(async (req, res) => {
@@ -1197,6 +1241,7 @@ app.delete('/api/license', guard(async (req, res) => {
     config.licenseActivation = '';
     saveConfig();
     startDiscordBot();
+    startPhone();
     res.json({ pro: false });
 }));
 
@@ -1262,6 +1307,7 @@ process.on('exit', () => { try { if (fs.readFileSync(PID_FILE, 'utf8') === Strin
 
 const stop = () => {
     discordBot?.stop();
+    phone.stop();
     fcm.client?.destroy();
     session?.close();
     threats.flush();

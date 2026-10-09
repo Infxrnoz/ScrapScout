@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0b0c">
+<title>RustScout</title>
+<link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
+<style>
+    :root { --bg: #0b0b0c; --panel: #141416; --line: #29292e; --text: #ece7df; --muted: #8e8a84; --accent: #e0442f; --good: #7fd04a; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, "Segoe UI", sans-serif; }
+    body { display: flex; flex-direction: column; }
+    header { display: flex; align-items: center; gap: 10px; padding: calc(8px + env(safe-area-inset-top)) 12px 8px; border-bottom: 1px solid var(--line); }
+    header b { font-weight: 800; letter-spacing: .12em; } header b em { font-style: normal; color: var(--accent); }
+    #info { margin-left: auto; text-align: right; font-size: 12px; color: var(--muted); }
+    #info strong { color: var(--text); font-size: 15px; }
+    #map { flex: 1; background: #10181c; }
+    nav { display: flex; border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
+    nav button { flex: 1; padding: 12px 0; background: none; border: 0; color: var(--muted); font: 600 13px system-ui; }
+    nav button.on { color: var(--accent); }
+    #sheet { position: absolute; left: 0; right: 0; bottom: calc(46px + env(safe-area-inset-bottom)); max-height: 55%; overflow: auto; background: var(--panel); border-top: 1px solid var(--line); z-index: 1000; padding: 10px 12px; }
+    #sheet[hidden] { display: none; }
+    .item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: #555; flex: none; }
+    .dot.on { background: var(--good); } .dot.dead { background: var(--accent); }
+    .sub { color: var(--muted); font-size: 12px; }
+    .alert b { color: #ff7a2f; }
+    .pm { display: flex; align-items: center; gap: 4px; white-space: nowrap; color: #fff; font: 600 12px system-ui; text-shadow: 0 0 3px #000, 0 0 3px #000; }
+    .pm i { width: 12px; height: 12px; border-radius: 50%; background: var(--good); border: 2px solid #000; flex: none; }
+    .pm.off i { background: #888; } .pm.dead i { background: var(--accent); }
+    #banner { display: none; padding: 10px 12px; background: #3a0d08; border-bottom: 1px solid var(--accent); font-weight: 700; }
+    #banner.on { display: block; }
+</style>
+</head>
+<body>
+<header><b>RUST<em>SCOUT</em></b><div id="info">Connecting…</div></header>
+<div id="banner"></div>
+<div id="map"></div>
+<div id="sheet" hidden></div>
+<nav><button data-sheet="map" class="on">Map</button><button data-sheet="team">Team</button><button data-sheet="alerts">Alerts</button></nav>
+<script src="/vendor/leaflet/leaflet.js"></script>
+<script>
+'use strict';
+const S = { meta: null, info: null, team: null, alerts: [], escalation: null, sheet: 'map' };
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const ago = t => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'just now' : m < 60 ? `${m}m ago` : `${Math.round(m / 60)}h ago`; };
+const map = L.map('map', { crs: L.CRS.Simple, minZoom: -4, maxZoom: 3, zoomSnap: 0.25, attributionControl: false, zoomControl: false });
+const team = L.layerGroup().addTo(map);
+let image = null;
+
+function loadMap(meta) {
+    S.meta = meta;
+    image?.remove();
+    if (!meta) return;
+    const { width: w, height: h, oceanMargin: m, mapSize: s } = meta;
+    const mx = m * s / (w - 2 * m), my = m * s / (h - 2 * m);
+    const bounds = [[-s / 2 - my, -s / 2 - mx], [s / 2 + my, s / 2 + mx]];
+    image = L.imageOverlay(`/api/map.jpg?v=${meta.version}`, bounds).addTo(map);
+    map.fitBounds(bounds);
+}
+
+function drawTeam() {
+    team.clearLayers();
+    if (!S.meta) return;
+    const half = S.meta.mapSize / 2;
+    for (const p of S.team?.members || []) {
+        if (!p.x && !p.y) continue;
+        const cls = !p.isOnline ? 'off' : !p.isAlive ? 'dead' : '';
+        L.marker([p.y - half, p.x - half], { icon: L.divIcon({ className: '', html: `<div class="pm ${cls}"><i></i>${esc(p.name)}</div>`, iconSize: [0, 0], iconAnchor: [6, 6] }) }).addTo(team);
+    }
+}
+
+function drawInfo() {
+    document.getElementById('info').innerHTML = S.info ? `<strong>${S.info.players}/${S.info.maxPlayers}</strong>${S.info.queuedPlayers ? ` +${S.info.queuedPlayers}` : ''}<br>${esc(S.info.name)}` : 'No server connected';
+    const b = document.getElementById('banner');
+    b.className = S.escalation ? 'on' : '';
+    b.textContent = S.escalation ? `🚨 RAID ALARM · ${S.escalation.text}` : '';
+}
+
+function drawSheet() {
+    const el = document.getElementById('sheet');
+    el.hidden = S.sheet === 'map';
+    document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.sheet === S.sheet));
+    if (S.sheet === 'team') {
+        const members = S.team?.members || [];
+        el.innerHTML = members.map(p => `<div class="item"><span class="dot ${!p.isOnline ? '' : p.isAlive ? 'on' : 'dead'}"></span><div><div>${esc(p.name)}</div><div class="sub">${!p.isOnline ? 'offline' : p.isAlive ? 'alive' : 'dead'}</div></div></div>`).join('') || '<p class="sub">Team info not loaded yet.</p>';
+    } else if (S.sheet === 'alerts') {
+        el.innerHTML = S.alerts.map(a => `<div class="item alert"><div><b>${esc(a.label || a.kind)}</b> ${esc(a.text)}<div class="sub">${ago(a.t)}</div></div></div>`).join('') || '<p class="sub">No alerts since this page opened.</p>';
+    }
+}
+
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => { S.sheet = b.dataset.sheet; drawSheet(); });
+
+function connect() {
+    const ws = new WebSocket(`ws://${location.host}/ws`);
+    ws.onmessage = ev => {
+        const m = JSON.parse(ev.data);
+        if (m.type === 'reset') {
+            S.info = m.snapshot?.info ?? null;
+            S.team = m.snapshot?.team ?? null;
+            loadMap(m.snapshot?.mapMeta ?? null);
+        } else if (m.type === 'info') S.info = m.info;
+        else if (m.type === 'map') loadMap(m.mapMeta);
+        else if (m.type === 'team') S.team = m.team;
+        else if (m.type === 'escalation') S.escalation = m.escalation;
+        else if (m.type === 'alert' && m.alert.kind !== 'chat') S.alerts = [m.alert, ...S.alerts].slice(0, 50);
+        drawInfo();
+        drawTeam();
+        if (S.sheet !== 'map') drawSheet();
+    };
+    ws.onclose = () => { document.getElementById('info').textContent = 'Reconnecting…'; setTimeout(connect, 3000); };
+}
+connect();
+</script>
+</body>
+</html>

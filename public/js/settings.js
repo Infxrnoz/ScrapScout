@@ -102,6 +102,20 @@
     bus.on('pro', () => { $('#stream-brand').disabled = !S.pro; if (!S.pro) $('#stream-brand').checked = true; streamUrl(); });
     $('#stream-copy').onclick = () => navigator.clipboard?.writeText($('#stream-url').value).then(() => toast({ kind: 'teamOnline', label: 'Copied', text: 'Paste it into an OBS Browser source' }));
     streamUrl();
+    const showPhone = p => {
+        $('#phone-on').checked = p.enabled;
+        $('#phone-status').textContent = !p.enabled ? '' : p.status === 'on' ? (p.links.length ? 'On. Scan the code below.' : 'On, but this PC isn\'t on a home network (no Wi-Fi/LAN address found).') : `Couldn't start: ${p.status}`;
+        $('#phone-qr').hidden = !p.links.length;
+        if (p.links.length) {
+            $('#phone-qr-img').src = `/api/phone/qr.svg?i=0&t=${Date.now()}`;
+            $('#phone-link').value = p.links[0];
+        }
+    };
+    const phoneCall = (url, opts) => api(url, opts).then(showPhone).catch(e => toast({ kind: 'alarm', label: 'Phone view', text: e.message }));
+    $('#phone-on').onchange = e => phoneCall('/api/phone', { method: 'PUT', body: { enabled: e.target.checked } });
+    $('#phone-new').onclick = () => confirm('Make a new link? Phones using the old one will need to scan again.') && phoneCall('/api/phone/new-link', { method: 'POST' });
+    $('#phone-copy').onclick = () => navigator.clipboard?.writeText($('#phone-link').value);
+    bus.on('tab:settings', () => api('/api/phone').then(showPhone).catch(() => {}));
     $('#settings-save').onclick = saveSettings;
     $('#esc-test').onclick = () => api('/api/escalation/test', { method: 'POST' }).catch(e => toast({ kind: 'alarm', label: 'Test failed', text: e.message }));
     $('#webhook-test').onclick = async () => {

@@ -26,6 +26,7 @@
         "chrome-launcher": "^0.15.2",
         "express": "^4.21.2",
         "leaflet": "^1.9.4",
+        "qrcode": "^1.5.4",
         "ws": "^8.18.0"
     },
     "devDependencies": {

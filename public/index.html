@@ -434,6 +434,17 @@
             </section>
             <button class="btn" id="settings-save" style="margin-top:10px;width:100%">Save settings</button>
 
+            <section id="phone-settings">
+            <h2>Phone view</h2>
+            <p class="hint">See the map, your team, pop and alerts on your phone while RustScout runs on this PC. Your phone must be on the same Wi-Fi. View only: nothing on the phone can change switches or settings.</p>
+            <div class="form">
+                <label class="check"><input type="checkbox" id="phone-on"> Turn on phone view</label>
+                <p class="hint" id="phone-status"></p>
+                <div id="phone-qr" hidden><img id="phone-qr-img" alt="QR code for the phone link"><div class="row"><input id="phone-link" readonly><button class="btn small" id="phone-copy" type="button">Copy</button></div>
+                <button class="btn ghost small" id="phone-new" type="button">Make a new link (the old one stops working)</button>
+                <p class="hint">Scan it with your phone camera. If Windows asks whether RustScout may use the network, allow <b>Private networks</b>. Anyone with this link on your Wi-Fi can view it, so don't share it.</p></div>
+            </div>
+            </section>
             <h2>Stream overlay (OBS)</h2>
             <p class="hint">Show your server, team and alerts on stream. In OBS: <b>Sources → + → Browser</b>, paste the link, set width 400 and height 600. The background is see-through.</p>
             <div class="form" id="stream-builder">

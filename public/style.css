@@ -282,6 +282,7 @@ select { width: auto; padding-right: 6px; }
 #escalation[hidden] { display: none; }
 #escalation b { font: 700 16px var(--display); letter-spacing: .08em; color: #ff8a72; white-space: nowrap; }
 #escalation span { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#phone-qr-img { width: 180px; height: 180px; padding: 8px; background: #fff; border-radius: 8px; display: block; margin: 6px 0; }
 .bc-row { display: grid; grid-template-columns: minmax(0, 1fr) 96px 56px auto; gap: 4px; margin-bottom: 4px; }
 .bc-row > * { min-width: 0; }
 #bc-presets { margin-bottom: 6px; }
