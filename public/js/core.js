@@ -352,17 +352,22 @@ const heat = {
         this.render();
     },
 
+    linkKey() { return `rmLink:${S.snapshot?.server?.id || 'preview'}`; },
+    linked() { return store.get(this.linkKey(), ''); },
+
     async load(meta) {
         this.meta = meta;
-        if (!meta.rustMapsId && (!meta.seed || !meta.mapSize)) { this.info = { state: 'unknown-seed' }; return this.render(); }
+        const linked = this.linked();
+        const sizeSeed = /^(\d+)_(\d+)$/.exec(linked);
+        if (!linked && !meta.rustMapsId && (!meta.seed || !meta.mapSize)) { this.info = { state: 'unknown-seed' }; return this.render(); }
         this.info = { state: 'loading' };
         this.render();
-        const query = meta.rustMapsId ? `id=${meta.rustMapsId}` : `size=${meta.mapSize}&seed=${meta.seed}`;
+        const query = sizeSeed ? `size=${sizeSeed[1]}&seed=${sizeSeed[2]}` : linked || meta.rustMapsId ? `id=${linked || meta.rustMapsId}` : `size=${meta.mapSize}&seed=${meta.seed}`;
         let r;
         try { r = await api(`/api/rustmaps?${query}`); } catch (e) { r = { state: 'error', error: e.message }; }
         if (this.meta !== meta) return; 
         this.info = r.ready ? { state: 'ready', map: r.map } : r;
-        if (r.ready && meta.custom && !meta.rustMapsId) {
+        if (r.ready && meta.custom && !meta.rustMapsId && !linked) {
             const match = this.matchRatio(meta, r.map);
             if (match === null) this.info.warning = 'Custom map: can’t confirm RustMaps’ data matches until the server is paired.';
             else if (match < 0.6) this.info = { state: 'custom' };
@@ -495,6 +500,24 @@ const heat = {
         });
         const op = $('#heat-opacity');
         if (op) op.oninput = () => { store.set('heatOpacity', +op.value); this.layer?.setOpacity(+op.value); };
+        if (!this.meta) return;
+        $('#heat-body').insertAdjacentHTML('beforeend', `<form id="rm-link" class="row"><input name="url" placeholder="Paste a RustMaps link for this server's map"><button class="btn small">Link</button></form>
+            ${this.linked() ? '<p class="hint">Using the RustMaps map you linked. <a href="#" id="rm-unlink">Unlink</a></p>' : ''}`);
+        const relink = id => {
+            store.set(this.linkKey(), id);
+            this.layer?.remove();
+            this.layer = null;
+            this.rmMonuments.clearLayers();
+            this.load(this.meta);
+        };
+        $('#rm-link').onsubmit = e => {
+            e.preventDefault();
+            const m = /rustmaps\.com\/map\/([0-9a-f]{32}|\d{3,4}_\d+)/i.exec(e.target.url.value);
+            if (!m) return toast({ kind: 'alarm', label: 'RustMaps', text: 'Paste a link like rustmaps.com/map/…' });
+            relink(m[1].toLowerCase());
+        };
+        const unlink = $('#rm-unlink');
+        if (unlink) unlink.onclick = e => { e.preventDefault(); relink(''); };
     }
 };
 
