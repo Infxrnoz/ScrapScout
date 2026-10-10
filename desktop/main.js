@@ -369,12 +369,22 @@ function updateOverlay() {
         overlayWin.loadURL(`${base}/overlay.html`);
         overlayWin.webContents.on('did-finish-load', () => { overlayWin?.showInactive(); sendOverlay(); });
         overlayWin.on('resize', () => sendOverlay());
-        overlayWin.on('closed', () => { overlayWin = null; });
+        overlayWin.webContents.on('render-process-gone', (e, d) => { dlog(`overlay renderer gone: ${d.reason}`); rebuildOverlay('renderer gone'); });
+        const self = overlayWin;
+        overlayWin.on('closed', () => { if (overlayWin === self) overlayWin = null; });
     } else {
         overlayWin.setBounds(display.bounds);
     }
     sendOverlay();
     buildTray();
+}
+
+function rebuildOverlay(why) {
+    if (!overlayWin) return updateOverlay();
+    dlog(`overlay rebuilt (${why})`);
+    overlayWin.destroy();
+    overlayWin = null;
+    updateOverlay();
 }
 
 function sendOverlay() {
@@ -551,7 +561,16 @@ app.whenReady().then(async () => {
     buildTray(); 
     dlog(`started ${app.getVersion()}; hotkeys: ${JSON.stringify(KEYS)}`);
     updateOverlay();
-    screen.on('display-metrics-changed', () => updateOverlay());
+    let rebuildTimer = null;
+    const rebuildSoon = why => {
+        clearTimeout(rebuildTimer);
+        rebuildTimer = setTimeout(() => rebuildOverlay(why), 1500);
+    };
+    for (const ev of ['display-metrics-changed', 'display-added', 'display-removed']) screen.on(ev, () => rebuildSoon(ev));
+    app.on('child-process-gone', (e, d) => {
+        dlog(`child process gone: ${d.type} ${d.reason}`);
+        if (d.type === 'GPU') rebuildSoon('gpu restarted');
+    });
     gammaLine(`color -1 100 50 50 1 0 ${settings().vibBase ?? -1}`).then(r => {
         if (r?.driverVibrance >= 0 && (!colorSettings().on || settings().vibBase == null)) saveSettings({ vibBase: r.driverVibrance });
         if (colorSettings().on && isPro()) applyColor();
