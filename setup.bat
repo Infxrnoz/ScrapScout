@@ -1,5 +1,5 @@
 @echo off
-title RustScout - setup
+title ScrapScout - setup
 cd /d "%~dp0"
 
 where node >nul 2>nul
@@ -11,7 +11,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo Installing RustScout...
+echo Installing ScrapScout...
 call npm install --omit=dev --no-fund --no-audit
 if errorlevel 1 (
     echo.

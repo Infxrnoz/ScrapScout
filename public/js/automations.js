@@ -35,11 +35,6 @@
 
     function render() {
         const box = $('#auto-list');
-        if (!S.pro) {
-            box.innerHTML = '<p class="pro-lock">Automations are a Pro feature: lights on at night, turrets off when everyone logs out, one-tap lockdown and more. Unlock it in <b>Settings → RustScout Pro</b>.</p>';
-            $('#auto-new').hidden = true;
-            return;
-        }
         $('#auto-new').hidden = false;
         const rules = S.automations || [];
         const cards = rules.map(r => editing?.id === r.id ? editor(editing) : `<div class="auto ${r.enabled ? '' : 'off'}">

@@ -37,10 +37,8 @@ const NO_TEAM = 'Team info not loaded yet';
 const name = id => ITEMS[id]?.n ?? id;
 
 
-const PRO = new Set(['raid', 'craft', 'recycle', 'decay', 'decaylist', 'cleardecay']);
-
 const COMMANDS = {
-    help: () => `Commands: ${Object.keys(COMMANDS).filter(c => c !== 'help' && !PRO.has(c)).join(' ')} | Pro: ${[...PRO].join(' ')}`,
+    help: () => `Commands: ${Object.keys(COMMANDS).filter(c => c !== 'help').join(' ')}`,
 
     pop: ({ info }) => info ? `Pop ${info.players}/${info.maxPlayers}${info.queuedPlayers ? ` (+${info.queuedPlayers} queued)` : ''}` : 'No server info yet',
 
@@ -170,7 +168,6 @@ async function handle(text, prefix, ctx) {
     const [cmd, ...args] = text.slice(prefix.length).trim().split(/\s+/);
     const fn = COMMANDS[cmd?.toLowerCase()];
     if (!fn) return null;
-    if (PRO.has(cmd.toLowerCase()) && !ctx.isPro) return `!${cmd.toLowerCase()} is a RustScout Pro command (rust-scout.app)`;
     try {
         return await fn(ctx, args.filter(Boolean));
     } catch (e) {

@@ -35,7 +35,7 @@ async function register(getSteamToken, progress = () => {}) {
 
     progress(4, 'Registering with Rust+…');
     await post('https://companion-rust.facepunch.com:443/api/push/register', {
-        AuthToken: authToken, DeviceId: 'rustscout', PushKind: 3, PushToken: expoPushToken
+        AuthToken: authToken, DeviceId: 'scrapscout', PushKind: 3, PushToken: expoPushToken
     });
     return { fcm_credentials: fcm, expo_push_token: expoPushToken, rustplus_auth_token: authToken };
 }

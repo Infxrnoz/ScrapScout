@@ -1,7 +1,7 @@
 {
     "name": "request-promise",
     "version": "4.2.6-fetch",
-    "description": "RustScout: the few request-promise calls @liamcottle/push-receiver makes, on Node's built-in fetch.",
+    "description": "ScrapScout: the few request-promise calls @liamcottle/push-receiver makes, on Node's built-in fetch.",
     "main": "index.js",
     "license": "MIT"
 }

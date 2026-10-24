@@ -44,8 +44,6 @@ const DEFAULT_CONFIG = {
     poll: { team: 5000, time: 15000, info: 30000, devices: 60000 },
     steamApiKey: '',
     rustMapsKey: '',
-    licenseKey: '',
-    licenseActivation: '',
     discordWebhook: '',
     bot: { enabled: true, prefix: '!' },
     discordBot: { enabled: false, token: '', channelId: '', prefix: '!', allowSay: false },
@@ -153,7 +151,7 @@ function discordSend(title, text, color = 0x3fa9f5, server, ping) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                username: 'RustScout', content: ping?.content, allowed_mentions: ping ? ping.allowed : { parse: [] },
+                username: 'ScrapScout', content: ping?.content, allowed_mentions: ping ? ping.allowed : { parse: [] },
                 embeds: [{ ...embed, timestamp: new Date().toISOString() }]
             }),
             signal: AbortSignal.timeout(8000)
@@ -184,7 +182,7 @@ function ring() {
     a.count++;
     a.nextAt = a.count < config.escalation.maxRepeats ? Date.now() + config.escalation.repeatMinutes * 60e3 : null;
     broadcast({ type: 'escalation', escalation: a });
-    const how = `Answer with **${config.bot.prefix}ack** in team chat${discordBot?.user ? `, **${config.discordBot.prefix}ack** here` : ''} or **I'm on it** in RustScout.`;
+    const how = `Answer with **${config.bot.prefix}ack** in team chat${discordBot?.user ? `, **${config.discordBot.prefix}ack** here` : ''} or **I'm on it** in ScrapScout.`;
     discordSend(`🚨 Raid alarm${a.count > 1 ? ` (reminder ${a.count - 1})` : ''}`, `${a.text}\n${how}`, 0xff3b30, a.server, mentionFor(config.escalation.mention));
     if (a.nextAt) escalation.timer = setTimeout(ring, a.nextAt - Date.now());
 }
@@ -785,7 +783,7 @@ const needSession = (req, res, next) => session ? next() : res.status(409).json(
 const guard = fn => async (req, res) => {
     try { await fn(req, res); } catch (e) { res.status(500).json({ error: errText(e) }); }
 };
-const needPro = (req, res, next) => isPro() ? next() : res.status(402).json({ error: 'That’s a RustScout Pro feature', pro: true });
+const needPro = (req, res, next) => isPro() ? next() : res.status(402).json({ error: 'That’s a ScrapScout Pro feature', pro: true });
 app.use(['/api/browse', '/api/watch', '/api/rustmaps', '/api/mapfile', '/api/mapfiles', '/api/terrain', '/api/facilities', '/api/tracked', '/api/rmtile', '/api/settings/test-webhook'], needPro);
 app.use('/api/pins', (req, res, next) => ['POST', 'PUT'].includes(req.method) ? needPro(req, res, next) : next());
 
@@ -1179,7 +1177,7 @@ app.post('/api/escalation/ack', (req, res) => {
 });
 app.post('/api/escalation/test', needPro, (req, res) => {
     if (!config.escalation.enabled) return res.status(400).json({ error: 'Turn on raid alarm escalation and save first' });
-    alert('alarm', 'Test alarm from RustScout (nothing is happening)');
+    alert('alarm', 'Test alarm from ScrapScout (nothing is happening)');
     res.json({ ok: true });
 });
 
@@ -1227,86 +1225,13 @@ app.put('/api/settings', (req, res) => {
     res.json({ ok: true });
 });
 
-const LICENSE_KEY = require('crypto').createPublicKey({ key: Buffer.from('MCowBQYDK2VwAyEAJEjFkGTZEtEibQw8r7mmxkMlZ9vxLc9B6Rch0NqyG6U=', 'base64'), format: 'der', type: 'spki' });
-const LICENSE_SERVER = process.env.RUSTSCOUT_LICENSE_SERVER || 'https://rustscout-pro.infxrnoz.workers.dev';
-const { machineId, keyId } = require('./src/machine');
-function readSigned(token, prefix) {
-    const m = new RegExp(`^${prefix}-([\\w-]+)\\.([\\w-]+)$`).exec(String(token || '').trim());
-    if (!m) return null;
-    try {
-        if (!require('crypto').verify(null, Buffer.from(m[1]), LICENSE_KEY, Buffer.from(m[2], 'base64url'))) return null;
-        return JSON.parse(Buffer.from(m[1], 'base64url').toString('utf8'));
-    } catch { return null; }
-}
-const readLicense = key => {
-    const l = readSigned(key, 'RS1');
-    return l && typeof l.e === 'string' && typeof l.s === 'string' && l.m === undefined ? l : null;
-};
-const license = () => readLicense(config.licenseKey);
-const activated = () => {
-    const a = readSigned(config.licenseActivation, 'RA1');
-    return !!a && a.m === machineId && a.k === keyId(config.licenseKey);
-};
-const isPro = () => !!license() && activated();
-
-async function licenseServer(action, key) {
-    let r;
-    try {
-        r = await fetch(`${LICENSE_SERVER}/${action}`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key, machine: machineId }), signal: AbortSignal.timeout(15000)
-        });
-    } catch { return { status: 503, error: 'Couldn’t reach the licence server. Check your internet and try again.' }; }
-    const j = await r.json().catch(() => ({}));
-    return r.ok ? j : { status: r.status, error: j.error || `Licence server answered ${r.status}` };
-}
-
-async function recheckLicense() {
-    if (!license() || !activated()) return;
-    const r = await licenseServer('activate', config.licenseKey);
-    if (r.status === 403 || r.status === 409) {
-        config.licenseActivation = '';
-        saveConfig();
-        startDiscordBot();
-        startPhone();
-        log(`RustScout Pro turned off: ${r.error}`);
-        return;
-    }
-    const a = !r.error && readSigned(r.activation, 'RA1');
-    if (a && a.m === machineId && a.k === keyId(config.licenseKey)) { config.licenseActivation = r.activation; saveConfig(); }
-}
-recheckLicense();
-setInterval(recheckLicense, 12 * 3600e3).unref();
+// Everything is free. There is no licence check any more: isPro() stays as the single
+// feature gate so the rest of the server (and older clients) keeps working unchanged.
+const isPro = () => true;
 
 startDiscordBot();
 startPhone();
-app.get('/api/license', (req, res) => res.json({ pro: isPro(), email: license()?.e ?? null, seats: license()?.n || 1, needsActivation: !!license() && !activated() }));
-app.post('/api/license', guard(async (req, res) => {
-    const key = String(req.body?.key || config.licenseKey || '').trim();
-    if (!readLicense(key)) return res.status(400).json({ error: 'That key isn’t valid. Copy the whole key, starting with RS1-' });
-    const r = await licenseServer('activate', key);
-    if (r.error) return res.status(r.status).json({ error: r.error });
-    const a = readSigned(r.activation, 'RA1');
-    if (!a || a.m !== machineId || a.k !== keyId(key)) return res.status(502).json({ error: 'The licence server sent back something unexpected. Try again.' });
-    config.licenseKey = key;
-    config.licenseActivation = r.activation;
-    saveConfig();
-    startDiscordBot();
-    startPhone();
-    res.json({ pro: true, email: readLicense(key).e ?? null });
-}));
-app.delete('/api/license', guard(async (req, res) => {
-    if (config.licenseKey && activated()) {
-        const r = await licenseServer('deactivate', config.licenseKey);
-        if (r.error && r.status !== 409) return res.status(r.status).json({ error: r.error });
-    }
-    config.licenseKey = '';
-    config.licenseActivation = '';
-    saveConfig();
-    startDiscordBot();
-    startPhone();
-    res.json({ pro: false });
-}));
+app.get('/api/license', (req, res) => res.json({ pro: true, email: null, seats: 1, needsActivation: false }));
 
 const APPEARANCE_FILE = path.join(DATA, 'appearance.json');
 const BG_DIR = path.join(DATA, 'appearance');
@@ -1314,13 +1239,13 @@ const BG_TYPES = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 
 const bgFile = () => fs.existsSync(BG_DIR) ? fs.readdirSync(BG_DIR).find(f => f.startsWith('background.')) : null;
 app.get('/api/appearance', (req, res) => res.json(readJson(APPEARANCE_FILE, {})));
 app.put('/api/appearance', (req, res) => {
-    if (!isPro()) return res.status(402).json({ error: 'Appearance is a RustScout Pro feature' });
+    if (!isPro()) return res.status(402).json({ error: 'Appearance is a ScrapScout Pro feature' });
     if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) return res.status(400).json({ error: 'Bad appearance' });
     writeJson(APPEARANCE_FILE, req.body);
     res.json({ ok: true });
 });
 app.post('/api/appearance/background', express.raw({ type: Object.keys(BG_TYPES), limit: '80mb' }), (req, res) => {
-    if (!isPro()) return res.status(402).json({ error: 'Appearance is a RustScout Pro feature' });
+    if (!isPro()) return res.status(402).json({ error: 'Appearance is a ScrapScout Pro feature' });
     const ext = BG_TYPES[String(req.get('content-type')).split(';')[0]];
     if (!ext || !Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: 'Pick a PNG, JPG, GIF, WebP, MP4 or WebM file (80 MB max)' });
     fs.mkdirSync(BG_DIR, { recursive: true });
@@ -1336,7 +1261,7 @@ app.post('/api/settings/test-webhook', guard(async (req, res) => {
     if (!config.discordWebhook) return res.status(400).json({ error: 'No webhook set' });
     const r = await fetch(config.discordWebhook, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: 'RustScout', content: 'Webhook connected. Alerts will land here.' })
+        body: JSON.stringify({ username: 'ScrapScout', content: 'Webhook connected. Alerts will land here.' })
     });
     r.ok ? res.json({ ok: true }) : res.status(400).json({ error: `Discord answered ${r.status}` });
 }));
@@ -1349,13 +1274,13 @@ wss.on('connection', ws => {
 
 httpServer.on('error', e => {
     if (e.code !== 'EADDRINUSE') throw e;
-    log(`Port ${config.port} is busy — RustScout is probably already running (maybe in the background). Open http://localhost:${config.port}`);
+    log(`Port ${config.port} is busy — ScrapScout is probably already running (maybe in the background). Open http://localhost:${config.port}`);
     process.exit(1);
 });
 let markListening;
 const listening = new Promise(resolve => { markListening = resolve; });
 httpServer.listen(config.port, '127.0.0.1', () => {
-    log(`RustScout running at http://localhost:${config.port}`);
+    log(`ScrapScout running at http://localhost:${config.port}`);
     if (!process.env.DESKTOP) fs.writeFileSync(PID_FILE, String(process.pid));
     markListening(config.port);
     startFcm();

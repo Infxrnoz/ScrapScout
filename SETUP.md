@@ -1,4 +1,4 @@
-# RustScout — setup
+# ScrapScout — setup
 
 A live Rust+ map for your team: teammates on the map, deaths, team chat + bot, smart switches/alarms, TC upkeep,
 a server browser, resource filters and heatmaps, and raid / decay / crafting / recycle / breeding / power tools.
@@ -6,12 +6,12 @@ It runs on your own PC. Nothing is shared with anyone.
 
 ## 1. Install
 
-1. Run **`RustScout-Setup-1.0.0.exe`**.
+1. Run **`ScrapScout-Setup-1.0.0.exe`**.
    Windows may show *"Windows protected your PC"*, because the installer isn't code-signed (signing costs money,
    and this is a free tool). Click **More info → Run anyway**.
 2. It installs and opens by itself. No admin rights, Node.js or Chrome needed.
 
-RustScout starts with Windows and sits in the tray (bottom-right, by the clock) so alerts keep coming.
+ScrapScout starts with Windows and sits in the tray (bottom-right, by the clock) so alerts keep coming.
 Closing the window just hides it there. Right-click the tray icon to quit or turn off *Start with Windows*.
 
 ## 2. Link your Steam account (once)
@@ -41,7 +41,7 @@ To pair smart switches, alarms or storage monitors: look at the device in game, 
 
 The webhook only *posts* alerts. The bot also *answers* commands in one channel.
 
-1. Go to https://discord.com/developers/applications → **New Application** → name it (e.g. *RustScout*).
+1. Go to https://discord.com/developers/applications → **New Application** → name it (e.g. *ScrapScout*).
 2. **Bot** page → **Reset Token** → copy the token. On the same page, turn on **Message Content Intent** and save.
 3. **OAuth2 → URL Generator** → tick **bot**, then under permissions tick **View Channels**, **Send Messages**,
    **Embed Links**, **Read Message History**. Open the generated link and add the bot to your Discord server.
@@ -82,7 +82,7 @@ npm start
 - **In-game HUD + crosshair:** a small HUD (game clock + time to night, pop, your next decay timer, live alerts) and your own
   crosshair, drawn over Rust. **Ctrl + Alt + O** toggles the HUD, **Ctrl + Alt + X** the crosshair. Design the crosshair
   (style, size, gap, thickness, colour, outline, centre dot) in Settings → *In-game overlay*. Borderless/Windowed mode only.
-- **Colour profiles (Pro):** make your own screen profiles (vibrance, saturation, brightness, contrast, gamma, temperature)
+- **Colour profiles:** make your own screen profiles (vibrance, saturation, brightness, contrast, gamma, temperature)
   in Settings → *Colour profiles*, or start from the Night, Snow and Desert presets. **Ctrl + Alt + V** switches to the next
   profile in game and turns colours off after the last one. Also in the tray menu. It changes your display settings like the
   NVIDIA Control Panel and never touches the game. Some community servers ban gamma changes in their rules, so check first.
@@ -99,13 +99,13 @@ npm start
 - **Server never shows up after pairing** — check Settings → *Push listener* says `listening`.
   If not (or it says the login expired), click **Link Steam** again, then re-pair in game.
 - **Only one copy can use your Rust+ login at a time** — don't run the desktop app and the zip version together.
-- **Where's my data?** Tray icon → *Open data folder* (`%APPDATA%\RustScout`). Uninstalling keeps it.
+- **Where's my data?** Tray icon → *Open data folder* (`%APPDATA%\ScrapScout`). Uninstalling keeps it.
 - Zip version: **"Node.js is not installed"** — install it from nodejs.org and run `setup.bat` again.
   **Port 3000 already in use** — another copy is running; close its black window (or run `stop.bat`).
 - **Discord bot status says to turn on Message Content Intent** — Developer Portal → your app → Bot → switch it on, then Save settings in the app again.
 - **No shops, events or their commands** — Facepunch removed shops (vending machines) and map events (heli, cargo, Chinook,
   crates, explosions, travelling vendor, oil rigs, airdrops) from Rust+ on 6 Aug 2026. No companion app can see them, so
-  RustScout removed those features. They come back if Facepunch brings the data back.
+  ScrapScout removed those features. They come back if Facepunch brings the data back.
 - **Heatmaps say "custom map"** — that server's map isn't on RustMaps, so there's no heat data for it.
 
 ## Keep these private

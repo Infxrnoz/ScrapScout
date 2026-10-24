@@ -32,12 +32,11 @@
         return `<div class="device monitor">${head}${upkeep}
             <div class="sub">${d.items.length}/${d.capacity || '?'} slots</div>
             <div class="slots">${items || '<span class="muted">empty</span>'}</div>
-            <details class="rules"><summary>Alerts${d.rules?.length ? ` <span class="tag">${d.rules.length}</span>` : ''}${S.pro ? '' : ' <span class="tag gold">PRO</span>'}</summary>
-                ${!S.pro ? '<p class="pro-lock">Box alerts are a Pro feature. Unlock it in <b>Settings → RustScout Pro</b>.</p>' : `
+            <details class="rules"><summary>Alerts${d.rules?.length ? ` <span class="tag">${d.rules.length}</span>` : ''}</summary>
                 ${rules || '<p class="hint">Get an alert (and a Discord ping) when something in this box goes above or below an amount.</p>'}
                 <form class="rule-add" data-rule-add="${d.id}"><select name="itemId">${choices}</select>
                     <select name="op"><option value="below">below</option><option value="above">above</option></select>
-                    <input name="qty" type="number" min="0" value="1000"><button class="btn small">Add</button></form>`}
+                    <input name="qty" type="number" min="0" value="1000"><button class="btn small">Add</button></form>
             </details></div>`;
     }
     const WATCH_ITEMS = ['-1581843485', '-592016202', '-265876753', '1248356124', '-742865266', '69511070', '317398316', '-2099697608', '-151838493', '-932201673', '-946369541', '-1938052175'];

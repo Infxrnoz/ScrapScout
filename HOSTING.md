@@ -1,4 +1,4 @@
-# Running RustScout 24/7
+# Running ScrapScout 24/7
 
 Everything that matters while you're away runs inside the app's backend, not the browser tab:
 alerts (raids/smart alarms, deaths, tracked players joining, decay timers, TC upkeep, wipes) go to
@@ -60,7 +60,7 @@ Linking Steam needs a desktop browser, so do the setup on your **PC first** (set
 fill in Settings). Then copy the whole folder, **including your private files**, to the server:
 
 ```bash
-scp -r "C:/Users/<you>/Documents/RustScout" user@server-ip:~/RustScout
+scp -r "C:/Users/<you>/Documents/ScrapScout" user@server-ip:~/ScrapScout
 ```
 
 The private files are `rustplus.config.json` (your Rust+ login), `config.json` (keys, Discord) and `data/`
@@ -69,7 +69,7 @@ The private files are `rustplus.config.json` (your Rust+ login), `config.json` (
 Then on the server:
 
 ```bash
-cd ~/RustScout
+cd ~/ScrapScout
 rm -rf node_modules
 npm install --omit=dev
 ```
@@ -82,9 +82,9 @@ sh scripts/install-linux-service.sh
 
 It starts now, restarts if it crashes, and starts again after a reboot.
 
-- **Logs:** `journalctl --user -u rustscout -f`
-- **Restart** (after changing config.json): `systemctl --user restart rustscout`
-- **Stop:** `systemctl --user stop rustscout`
+- **Logs:** `journalctl --user -u scrapscout -f`
+- **Restart** (after changing config.json): `systemctl --user restart scrapscout`
+- **Stop:** `systemctl --user stop scrapscout`
 
 ### 5. Look at the map
 
@@ -99,10 +99,10 @@ Leave that open and browse to http://localhost:3000 on your PC. Close the tunnel
 ### Pairing new servers later
 
 In game: **ESC → Rust+ → Pair with server**. The pairing push reaches the server copy the same way it reached
-your PC, so it shows up there by itself. Check with `journalctl --user -u rustscout -f`.
+your PC, so it shows up there by itself. Check with `journalctl --user -u scrapscout -f`.
 
 If the log says the Rust+ credentials expired, run `setup.bat` on your PC again and copy the new
-`rustplus.config.json` to the server, then `systemctl --user restart rustscout`.
+`rustplus.config.json` to the server, then `systemctl --user restart scrapscout`.
 
 ---
 

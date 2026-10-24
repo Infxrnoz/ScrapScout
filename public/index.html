@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>RustScout</title>
+    <title>ScrapScout</title>
     <link rel="icon" type="image/png" href="/icon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -12,7 +12,7 @@
 </head>
 <body>
 <header class="topbar">
-    <div class="brand"><span class="mark"></span>RUST<em>SCOUT</em></div>
+    <div class="brand"><span class="mark"></span>SCRAP<em>SCOUT</em></div>
     <div class="spacer"></div>
     <div class="pill" id="server-pill">
         <i class="dot"></i><span id="server-name">No server</span><b id="server-pop"></b>
@@ -116,7 +116,7 @@
 
         <section data-panel="threats">
             <h2>Threats</h2>
-            <p class="hint">Everyone who has killed you, ranked, from Rust+ death notifications. Pro adds their public Steam profile.</p>
+            <p class="hint">Everyone who has killed you, ranked, from Rust+ death notifications. Add a Steam Web API key in Settings to see their public profile too.</p>
             <p class="hint" id="threat-key-hint">Add a Steam Web API key in Settings to also see Rust hours and game bans.</p>
             <div id="threat-list" class="list"></div>
             <h3>Recent deaths</h3>
@@ -330,17 +330,9 @@
             </div>
             </section>
 
-            <section id="pro-box">
-                <h2>RustScout Pro</h2>
-                <p class="hint" id="pro-status"></p>
-                <div class="row" id="pro-enter">
-                    <input id="pro-key" placeholder="Paste your licence key (RS1-…)">
-                    <button class="btn small" id="pro-activate">Activate</button>
-                </div>
-                <div class="row">
-                    <a class="btn small" id="pro-buy" target="_blank" hidden>Get Pro</a>
-                    <button class="btn small ghost" id="pro-remove" hidden>Remove key</button>
-                </div>
+            <section id="free-box">
+                <h2>Everything is free</h2>
+                <p class="hint">Every feature in ScrapScout is unlocked for everyone. No keys, no licence server, no Pro tier. If you paid for a Pro key before, it no longer gates anything.</p>
             </section>
 
             <section id="appearance-settings">
@@ -382,7 +374,7 @@
 
             <section id="color-settings" hidden>
                 <h2>Colour profiles</h2>
-                <p class="hint">Change the whole screen like the NVIDIA Control Panel does, without touching the game. Make as many profiles as you like. In game, <b id="key-color">Ctrl + Alt + V</b> switches to the next profile, and after the last one turns colours off. Everything goes back to normal when RustScout quits. <span id="col-method"></span></p>
+                <p class="hint">Change the whole screen like the NVIDIA Control Panel does, without touching the game. Make as many profiles as you like. In game, <b id="key-color">Ctrl + Alt + V</b> switches to the next profile, and after the last one turns colours off. Everything goes back to normal when ScrapScout quits. <span id="col-method"></span></p>
                 <div class="row">
                     <select id="col-profile"></select>
                     <button class="btn small ghost" id="col-new" title="New profile">New</button>
@@ -436,7 +428,7 @@
             <div id="alert-matrix" class="matrix"></div>
             <section id="escalation-settings">
                 <h3>Raid alarm escalation</h3>
-                <p class="hint">When a smart alarm goes off, keep ringing until someone answers: a siren in RustScout and a Discord ping, repeated until a teammate types <code>!ack</code> in team chat or Discord, or clicks <b>I'm on it</b>.</p>
+                <p class="hint">When a smart alarm goes off, keep ringing until someone answers: a siren in ScrapScout and a Discord ping, repeated until a teammate types <code>!ack</code> in team chat or Discord, or clicks <b>I'm on it</b>.</p>
                 <div class="form">
                     <label class="check"><input type="checkbox" id="set-esc"> Escalate smart alarms</label>
                     <label class="check"><input type="checkbox" id="set-esc-sound"> Play a siren on this PC</label>
@@ -452,13 +444,13 @@
 
             <section id="phone-settings">
             <h2>Phone view</h2>
-            <p class="hint">See the map, your team, pop and alerts on your phone while RustScout runs on this PC. Your phone must be on the same Wi-Fi. View only: nothing on the phone can change switches or settings.</p>
+            <p class="hint">See the map, your team, pop and alerts on your phone while ScrapScout runs on this PC. Your phone must be on the same Wi-Fi. View only: nothing on the phone can change switches or settings.</p>
             <div class="form">
                 <label class="check"><input type="checkbox" id="phone-on"> Turn on phone view</label>
                 <p class="hint" id="phone-status"></p>
                 <div id="phone-qr" hidden><img id="phone-qr-img" alt="QR code for the phone link"><div class="row"><input id="phone-link" readonly><button class="btn small" id="phone-copy" type="button">Copy</button></div>
                 <button class="btn ghost small" id="phone-new" type="button">Make a new link (the old one stops working)</button>
-                <p class="hint">Scan it with your phone camera. If Windows asks whether RustScout may use the network, allow <b>Private networks</b>. Anyone with this link on your Wi-Fi can view it, so don't share it.</p></div>
+                <p class="hint">Scan it with your phone camera. If Windows asks whether ScrapScout may use the network, allow <b>Private networks</b>. Anyone with this link on your Wi-Fi can view it, so don't share it.</p></div>
             </div>
             </section>
             <h2>Stream overlay (OBS)</h2>
@@ -466,12 +458,12 @@
             <div class="form" id="stream-builder">
                 <div class="row wrap"><label class="check"><input type="checkbox" data-w="card" checked> Server card</label><label class="check"><input type="checkbox" data-w="team" checked> Team</label><label class="check"><input type="checkbox" data-w="alerts" checked> Alerts</label></div>
                 <div class="row"><label class="field">Corner<select id="stream-corner"><option value="top-right">Top right</option><option value="top-left">Top left</option><option value="bottom-right">Bottom right</option><option value="bottom-left">Bottom left</option></select></label><label class="field">Size<input id="stream-scale" type="number" min="0.5" max="3" step="0.1" value="1" class="num"></label></div>
-                <label class="check"><input type="checkbox" id="stream-brand" checked> Show the RustScout credit <span class="tag gold">PRO to hide</span></label>
+                <label class="check"><input type="checkbox" id="stream-brand" checked> Show the ScrapScout credit</label>
                 <div class="row"><input id="stream-url" readonly><button class="btn small" id="stream-copy" type="button">Copy</button></div>
                 <p class="hint">Streaming your team's positions invites stream snipers, so the overlay never shows the map.</p>
             </div>
             <h2>Removed by Facepunch</h2>
-            <p class="hint">On <b>6 August 2026</b> Facepunch removed shops (vending machines) and map events (patrol heli, cargo ship, Chinook, locked crates, explosions, travelling vendor, oil rigs and airdrops) from Rust+. No companion app can see them anymore, so RustScout no longer has the Shops tab, sulfur sale tracking, raid targets, event timers, event alerts, or the chat commands for them (<code>!events</code> <code>!cargo</code> <code>!heli</code> <code>!chinook</code> <code>!vendor</code> <code>!crate</code> <code>!oil</code> <code>!small</code> <code>!large</code> <code>!airdrop</code> <code>!shop</code> <code>!sulfur</code>). If Facepunch brings that data back, those features will come back too.</p>
+            <p class="hint">On <b>6 August 2026</b> Facepunch removed shops (vending machines) and map events (patrol heli, cargo ship, Chinook, locked crates, explosions, travelling vendor, oil rigs and airdrops) from Rust+. No companion app can see them anymore, so ScrapScout no longer has the Shops tab, sulfur sale tracking, raid targets, event timers, event alerts, or the chat commands for them (<code>!events</code> <code>!cargo</code> <code>!heli</code> <code>!chinook</code> <code>!vendor</code> <code>!crate</code> <code>!oil</code> <code>!small</code> <code>!large</code> <code>!airdrop</code> <code>!shop</code> <code>!sulfur</code>). If Facepunch brings that data back, those features will come back too.</p>
         </section>
     </aside>
     <button class="panel-toggle" id="panel-toggle" title="Toggle panel"></button>

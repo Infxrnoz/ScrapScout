@@ -1,15 +1,15 @@
-# RustScout
+# ScrapScout
 
 A free Rust+ companion for your desktop: live map, team tracker, alerts to Discord, server browser, ore and resource maps,
 tracked players, map pins and decay timers, raid / crafting / power tools. It runs on your own machine and talks to the
 Rust server through the Rust+ companion API (the same one rustplusplus uses).
 
-*RustScout is a free fan-made tool. It isn't affiliated with or endorsed by Facepunch Studios; Rust and Rust+ are theirs.*
+*ScrapScout is a free fan-made tool. It isn't affiliated with or endorsed by Facepunch Studios; Rust and Rust+ are theirs.*
 
 ## Desktop app (Windows)
 
-`npm run dist` builds `dist-app/RustScout-Setup-<version>.exe`, a one-click per-user installer (Electron). The app runs the same
-backend as `npm start`, keeps its data in `%APPDATA%\RustScout`, lives in the tray, starts with Windows, links Steam in its
+`npm run dist` builds `dist-app/ScrapScout-Setup-<version>.exe`, a one-click per-user installer (Electron). The app runs the same
+backend as `npm start`, keeps its data in `%APPDATA%\ScrapScout`, lives in the tray, starts with Windows, links Steam in its
 own login window (no Chrome needed). `npm run app` runs it from source.
 `npm run dist:personal` builds `…-personal.exe`, the same app plus a tray item to import data from the old zip version (the shared build leaves it out).
 The icon is drawn by `npm run icon` (desktop/make-icon.js).

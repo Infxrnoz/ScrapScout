@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>RustScout stream overlay</title>
+<title>ScrapScout stream overlay</title>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
     html, body { margin: 0; background: transparent; overflow: hidden; font: 600 15px/1.35 Inter, "Segoe UI", sans-serif; color: #ece7df; }
@@ -69,7 +69,7 @@ function draw() {
     if (WIDGETS.includes('alerts') && fresh.length) {
         parts.push(`<div class="box">${fresh.map(a => `<div class="alert"><b>${esc(a.label || a.kind)}</b> ${esc(a.text)}</div>`).join('')}</div>`);
     }
-    if (!S.pro || q.get('brand') !== '0') parts.push('<div class="brand">RUST<em>SCOUT</em> · rust-scout.app</div>');
+    if (!S.pro || q.get('brand') !== '0') parts.push('<div class="brand">SCRAP<em>SCOUT</em> · github.com/Infxrnoz/ScrapScout</div>');
     wrap.innerHTML = parts.join('');
 }
 

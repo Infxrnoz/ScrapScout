@@ -686,7 +686,7 @@ function toast(a) {
     setTimeout(() => el.classList.add('out'), 7000);
     setTimeout(() => el.remove(), 7600);
     if (store.get('desktopNotify', !!window.desktop) && document.hidden && 'Notification' in window && Notification.permission === 'granted') {
-        const n = new Notification(a.label || 'RustScout', { body: a.text, tag: `${a.kind}-${a.t}` });
+        const n = new Notification(a.label || 'ScrapScout', { body: a.text, tag: `${a.kind}-${a.t}` });
         n.onclick = () => { window.desktop?.show(); window.focus(); if (Number.isFinite(a.x)) flyTo(a.x, a.y); };
     }
 }
@@ -720,7 +720,7 @@ function renderOnboarding() {
     const waiting = active && st !== 'online'
         ? st === 'not answering'
             ? `<div class="onboard"><div class="title">${esc(active.name)} isn’t answering</div>
-               <p>The server accepts the connection but its Rust+ service doesn’t respond, so RustScout keeps retrying on its own (about every 45 seconds).</p>
+               <p>The server accepts the connection but its Rust+ service doesn’t respond, so ScrapScout keeps retrying on its own (about every 45 seconds).</p>
                <ul><li>Busy servers (just after a wipe, full with a queue) often stop answering Rust+ for a while.</li>
                <li>Some servers only let the official Rust+ phone app through. If that app can’t load the map either, it’s the server.</li>
                <li>Meanwhile, the <b>Browse</b> tab still shows its map, pop and wipe.</li></ul></div>`
@@ -730,7 +730,7 @@ function renderOnboarding() {
         <div class="onboard"><div class="title">Get your server on the map</div><ol>${step1}
         <li>In Rust, join your server and press <b>ESC → Rust+ → Pair with server</b></li>
         <li>It shows up here by itself within a few seconds</li></ol>
-        <p class="muted">With Pro, the <b>Browse</b> tab shows any server's map without pairing.</p></div>`)}</div>`;
+        <p class="muted">The <b>Browse</b> tab shows any server's map without pairing.</p></div>`)}</div>`;
     $('#onboard-link')?.addEventListener('click', linkSteam);
 }
 bus.on('servers', renderOnboarding);
@@ -841,7 +841,7 @@ function showUpdate(u) {
     b.hidden = !u;
     if (!u) return;
     b.textContent = `⬆ Update ${u.version} ready · restart`;
-    b.title = 'RustScout restarts in a few seconds with the new version';
+    b.title = 'ScrapScout restarts in a few seconds with the new version';
     b.onclick = () => window.desktop.updateInstall();
 }
 window.desktop?.updateGet?.().then(showUpdate).catch(() => {});

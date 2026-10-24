@@ -11,7 +11,7 @@ function rawId() {
     return `${os.hostname()}|${os.userInfo().username}`;
 }
 
-const machineId = crypto.createHash('sha256').update(`rustscout|${rawId()}`).digest('hex').slice(0, 32);
+const machineId = crypto.createHash('sha256').update(`scrapscout|${rawId()}`).digest('hex').slice(0, 32);
 const keyId = key => crypto.createHash('sha256').update(String(key).trim()).digest('hex').slice(0, 32);
 
 module.exports = { machineId, keyId };

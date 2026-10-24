@@ -1,5 +1,5 @@
 @echo off
-title RustScout
+title ScrapScout
 cd /d "%~dp0"
 
 if not exist node_modules (
@@ -10,6 +10,6 @@ if not exist node_modules (
 
 rem Open the browser a few seconds after the server starts.
 start "" cmd /c "timeout /t 3 >nul & start http://localhost:3000"
-echo RustScout is running at http://localhost:3000 - keep this window open. Close it to stop.
+echo ScrapScout is running at http://localhost:3000 - keep this window open. Close it to stop.
 call npm start
 pause

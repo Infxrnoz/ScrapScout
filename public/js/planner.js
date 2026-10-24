@@ -35,7 +35,7 @@
         if (!cells.length) {
             grid.innerHTML = '';
             $('#raidtime-best').textContent = '';
-            $('#raidtime-note').textContent = 'No player counts yet. RustScout records them while it\'s connected; check back after it has been open for a while.';
+            $('#raidtime-note').textContent = 'No player counts yet. ScrapScout records them while it\'s connected; check back after it has been open for a while.';
             return;
         }
         const max = Math.max(...cells.map(c => c.avg), 1);
@@ -58,7 +58,7 @@
         grid.innerHTML = `<div class="rt-grid">${html}</div>`;
         $('#raidtime-best').textContent = `${DAYS[best[0].d]} ${hourLabel(best[0].h)}`;
         $('#raidtime-note').innerHTML = `Quietest: ${best.map(c => `<b>${DAYS[c.d]} ${hourLabel(c.h)}</b> (~${Math.round(c.avg)} online)`).join(', ')}. `
-            + `Based on ${dates.size} day${dates.size === 1 ? '' : 's'} of player counts RustScout saw while it was open, in your local time.${dates.size < 4 ? ' Leave RustScout open for a few days to fill in the gaps.' : ''}`;
+            + `Based on ${dates.size} day${dates.size === 1 ? '' : 's'} of player counts ScrapScout saw while it was open, in your local time.${dates.size < 4 ? ' Leave ScrapScout open for a few days to fill in the gaps.' : ''}`;
     }
 
     const SHAPES = {

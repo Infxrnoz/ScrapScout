@@ -1,8 +1,8 @@
 @echo off
-rem Stops a RustScout that is running in the background (start-background.vbs / autostart).
+rem Stops a ScrapScout that is running in the background (start-background.vbs / autostart).
 cd /d "%~dp0"
 if not exist "data\app.pid" (
-    echo RustScout is not running in the background.
+    echo ScrapScout is not running in the background.
     pause
     exit /b 0
 )

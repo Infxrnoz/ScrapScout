@@ -44,7 +44,7 @@ class PhoneServer {
             res.end(body);
         };
         if (req.method !== 'GET') return send(405, 'Not allowed');
-        if (!this.authed(req, url)) return send(401, 'Open the link from RustScout (Settings → Phone view) to see this page.');
+        if (!this.authed(req, url)) return send(401, 'Open the link from ScrapScout (Settings → Phone view) to see this page.');
         if (url.searchParams.has('k')) {
             return send(302, '', 'text/plain', { Location: url.pathname, 'Set-Cookie': `rs=${this.token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=31536000` });
         }

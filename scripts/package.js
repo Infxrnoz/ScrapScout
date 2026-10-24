@@ -4,7 +4,7 @@ const { execFileSync } = require('child_process');
 
 const ROOT = path.join(__dirname, '..');
 const DIST = path.join(ROOT, 'dist');
-const STAGE = path.join(DIST, 'RustScout');
+const STAGE = path.join(DIST, 'ScrapScout');
 
 const INCLUDE = [
     'server.js', 'package.json', 'package-lock.json', 'README.md', 'SETUP.md', 'setup.bat', 'start.bat',
@@ -23,7 +23,7 @@ for (const rel of INCLUDE) {
     fs.cpSync(src, path.join(STAGE, rel), { recursive: true, filter: s => !NEVER.test(s) });
 }
 
-const zip = path.join(DIST, 'RustScout.zip');
-execFileSync('tar', ['-a', '-c', '-f', zip, '-C', DIST, 'RustScout']);
+const zip = path.join(DIST, 'ScrapScout.zip');
+execFileSync('tar', ['-a', '-c', '-f', zip, '-C', DIST, 'ScrapScout']);
 fs.rmSync(STAGE, { recursive: true, force: true });
 console.log(`Built ${path.relative(ROOT, zip)} (${Math.round(fs.statSync(zip).size / 1024)} KB)`);

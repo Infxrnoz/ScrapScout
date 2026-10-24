@@ -1,7 +1,7 @@
 {
     "name": "request",
     "version": "2.88.2-removed",
-    "description": "RustScout: placeholder. Nothing loads request any more (see vendor/request-promise-fetch).",
+    "description": "ScrapScout: placeholder. Nothing loads request any more (see vendor/request-promise-fetch).",
     "main": "index.js",
     "license": "MIT"
 }

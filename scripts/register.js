@@ -8,7 +8,7 @@ const { register, LOGIN_URL } = require('../src/register');
 const PORT = 3100;
 const OUT = path.join(__dirname, '..', 'rustplus.config.json');
 
-const PAIR_PAGE = `<!doctype html><meta charset="utf-8"><title>RustScout — link Steam</title>
+const PAIR_PAGE = `<!doctype html><meta charset="utf-8"><title>ScrapScout — link Steam</title>
 <body style="font:16px system-ui;background:#111;color:#eee;display:grid;place-items:center;height:100vh;margin:0">
 <div style="max-width:460px;text-align:center"><h2>Link your Steam account</h2>
 <p>A Rust+ login window should have opened. Sign in with Steam there.</p>
@@ -54,7 +54,7 @@ async function getSteamToken() {
     const server = app.listen(PORT, '127.0.0.1');
     await new Promise((resolve, reject) => { server.once('listening', resolve); server.once('error', reject); });
 
-    const profile = path.join(os.tmpdir(), `rustscout-steam-link-${Date.now()}`);
+    const profile = path.join(os.tmpdir(), `scrapscout-steam-link-${Date.now()}`);
     const flags = ['--disable-web-security', '--disable-site-isolation-trials', '--disable-popup-blocking', '--no-first-run', `--user-data-dir=${profile}`];
     try {
         browser = await ChromeLauncher.launch({ startingUrl: `http://localhost:${PORT}`, chromeFlags: flags, userDataDir: profile, handleSIGINT: false });

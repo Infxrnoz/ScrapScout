@@ -12,7 +12,7 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 const ROOT = path.join(__dirname, '..');
-const IMPORT_OLD = require(path.join(ROOT, 'package.json')).rustscout?.importOldVersion === true;
+const IMPORT_OLD = require(path.join(ROOT, 'package.json')).scrapscout?.importOldVersion === true;
 const USER = app.getPath('userData');
 const DATA = path.join(USER, 'data');
 const ICON = path.join(__dirname, 'icon.png');
@@ -25,7 +25,7 @@ let base = null;
 let quitting = false;
 let linking = null;
 
-app.setAppUserModelId('com.rustscout.app');
+app.setAppUserModelId('com.scrapscout.app');
 
 function freePort(from, to) {
     return new Promise((resolve, reject) => {
@@ -68,7 +68,7 @@ function showWindow() {
 function createWindow() {
     win = new BrowserWindow({
         width: 1440, height: 900, minWidth: 900, minHeight: 600,
-        title: 'RustScout', icon: ICON, backgroundColor: '#0b0b0c', autoHideMenuBar: true, show: false,
+        title: 'ScrapScout', icon: ICON, backgroundColor: '#0b0b0c', autoHideMenuBar: true, show: false,
         webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true }
     });
     win.loadURL(base);
@@ -93,20 +93,17 @@ function createWindow() {
         win.hide();
         if (!settings().trayHintShown) {
             saveSettings({ trayHintShown: true });
-            new Notification({ title: 'RustScout is still running', body: 'Alerts keep coming. Open it again from the tray icon, or right-click the icon → Quit.', icon: ICON }).show();
+            new Notification({ title: 'ScrapScout is still running', body: 'Alerts keep coming. Open it again from the tray icon, or right-click the icon → Quit.', icon: ICON }).show();
         }
     });
     win.on('closed', () => { win = null; });
 }
 
-const isPro = () => !!server?.isPro?.();
-function askPro() {
-    buildTray();
-    showWindow();
-    win?.webContents.executeJavaScript("openTab('settings'); document.getElementById('pro-box')?.scrollIntoView()").catch(() => {});
-    new Notification({ title: 'RustScout Pro', body: 'That’s a Pro feature. Settings → RustScout Pro to unlock it.', icon: ICON }).show();
-}
-const proOnly = fn => (...a) => isPro() ? fn(...a) : askPro();
+// Every feature is free in ScrapScout. The Pro gate is gone; these stay as
+// no-op shims so call sites do not need to change.
+const isPro = () => true;
+function askPro() {}
+const proOnly = fn => fn;
 
 const SHELL_FILE = path.join(USER, 'desktop.json');
 const settings = () => { try { return JSON.parse(fs.readFileSync(SHELL_FILE, 'utf8')); } catch { return {}; } };
@@ -185,7 +182,7 @@ async function importOld() {
     if (pick.canceled || !pick.filePaths[0]) return;
     const dir = pick.filePaths[0];
     if (!importable(dir).some(f => /servers\.json$|config\.json$/.test(f))) {
-        dialog.showMessageBox(win, { type: 'warning', title: 'Nothing to import', message: 'That folder doesn’t look like an older RustScout (Rust On Top) folder.', detail: 'Pick the folder that has server.js and a data folder in it.' });
+        dialog.showMessageBox(win, { type: 'warning', title: 'Nothing to import', message: 'That folder doesn’t look like an older ScrapScout (Rust On Top) folder.', detail: 'Pick the folder that has server.js and a data folder in it.' });
         return;
     }
     const ok = await dialog.showMessageBox(win, {
@@ -499,7 +496,7 @@ ipcMain.handle('update-install', () => installUpdate());
 function buildTray() {
     const menu = Menu.buildFromTemplate([
         ...(update ? [{ label: `Restart to update (v${update.version})`, click: () => installUpdate() }, { type: 'separator' }] : []),
-        { label: 'Open RustScout', click: showWindow },
+        { label: 'Open ScrapScout', click: showWindow },
         { type: 'separator' },
         { label: 'Link Steam account…', click: async () => { showWindow(); const r = await linkSteam(); if (!r.ok) dialog.showMessageBox(win, { type: 'error', title: 'Steam link', message: 'Couldn’t link Steam', detail: r.error }); } },
         { label: 'Start with Windows', type: 'checkbox', checked: autoStart(), click: item => setAutoStart(item.checked) },
@@ -528,7 +525,7 @@ function buildTray() {
     ]);
     if (!tray) {
         tray = new Tray(nativeImage.createFromPath(ICON).resize({ width: 16, height: 16 }));
-        tray.setToolTip('RustScout');
+        tray.setToolTip('ScrapScout');
         tray.on('click', showWindow);
     }
     tray.setContextMenu(menu);
@@ -547,7 +544,7 @@ app.whenReady().then(async () => {
         await startServer();
         startUpdater();
     } catch (e) {
-        dialog.showErrorBox('RustScout couldn’t start', e.stack || e.message);
+        dialog.showErrorBox('ScrapScout couldn’t start', e.stack || e.message);
         app.exit(1);
         return;
     }

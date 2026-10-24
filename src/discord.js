@@ -63,7 +63,7 @@ class DiscordBot {
         if (op === 10) {
             clearInterval(this.beat);
             this.beat = setInterval(() => this.send(1, this.seq), Math.min(60000, Math.max(5000, Number(d.heartbeat_interval) || 41250)));
-            this.send(2, { token: this.opts.token, intents: INTENTS, properties: { os: process.platform, browser: 'rustscout', device: 'rustscout' } });
+            this.send(2, { token: this.opts.token, intents: INTENTS, properties: { os: process.platform, browser: 'scrapscout', device: 'scrapscout' } });
         } else if (op === 1) {
             this.send(1, this.seq);
         } else if (op === 7 || op === 9) {

@@ -1,6 +1,6 @@
 {
-    "name": "rustscout",
-    "productName": "RustScout",
+    "name": "scrapscout",
+    "productName": "ScrapScout",
     "version": "1.2.0",
     "private": true,
     "description": "Free Rust+ companion for your desktop: live map, team, alerts, server browser, ore maps, raid and base tools.",
@@ -16,7 +16,7 @@
         "package": "node scripts/package.js",
         "app": "electron .",
         "dist": "electron-builder --win nsis --publish never",
-        "dist:personal": "electron-builder --win nsis -c.extraMetadata.rustscout.importOldVersion=true -c.win.artifactName=RustScout-Setup-${version}-personal.${ext}",
+        "dist:personal": "electron-builder --win nsis -c.extraMetadata.scrapscout.importOldVersion=true -c.win.artifactName=ScrapScout-Setup-${version}-personal.${ext}",
         "icon": "node desktop/make-icon.js",
         "gamma": "C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe -nologo -optimize -target:exe -platform:x64 -r:System.Windows.Forms.dll -out:desktop\\gamma\\gamma.exe desktop\\gamma\\gamma.cs desktop\\gamma\\display.cs",
         "release": "node scripts/release.js"
@@ -42,8 +42,8 @@
         "uuid": "11.1.1"
     },
     "build": {
-        "appId": "com.rustscout.app",
-        "productName": "RustScout",
+        "appId": "com.scrapscout.app",
+        "productName": "ScrapScout",
         "copyright": "Free tool. Not affiliated with or endorsed by Facepunch Studios.",
         "directories": {
             "output": "dist-app"
@@ -69,7 +69,7 @@
         "win": {
             "target": "nsis",
             "icon": "desktop/icon.png",
-            "artifactName": "RustScout-Setup-${version}.${ext}"
+            "artifactName": "ScrapScout-Setup-${version}.${ext}"
         },
         "nsis": {
             "oneClick": true,
@@ -77,7 +77,7 @@
             "runAfterFinish": true,
             "createDesktopShortcut": true,
             "createStartMenuShortcut": true,
-            "shortcutName": "RustScout",
+            "shortcutName": "ScrapScout",
             "deleteAppDataOnUninstall": false
         },
         "extraResources": [
@@ -90,7 +90,7 @@
             {
                 "provider": "github",
                 "owner": "Infxrnoz",
-                "repo": "rustscout-site",
+                "repo": "ScrapScout",
                 "releaseType": "release"
             }
         ]
