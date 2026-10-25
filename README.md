@@ -9,7 +9,7 @@ For help dm infxrno.jpg on discord.
 
 [![Latest release](https://img.shields.io/github/v/release/Infxrnoz/ScrapScout?label=download)](https://github.com/Infxrnoz/ScrapScout/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/Infxrnoz/ScrapScout/total)](https://github.com/Infxrnoz/ScrapScout/releases)
-[![License](https://img.shields.io/badge/license-PolyForm%20Noncommercial-blue)](LICENSE)
+[![License](https://img.shields.io/badge/license-FSL--1.1--MIT-blue)](LICENSE)
 ![Windows](https://img.shields.io/badge/platform-Windows-0078d6)
 
 </div>
@@ -69,8 +69,13 @@ If another app already uses one of these, the tray menu shows which keys ScrapSc
 
 ## License
 
-Free to use, change and share for **non-commercial** use under the [PolyForm Noncommercial License 1.0.0](LICENSE).
-You can't sell it or make money from it. For anything else, ask [@Infxrnoz](https://github.com/Infxrnoz).
+Source-available under the [Functional Source License 1.1, MIT Future License](LICENSE) (`FSL-1.1-MIT`).
+
+You can read, use, modify, share and build on ScrapScout for anything except a **competing commercial product or service** — for example, selling a rebranded fork, a paid hosted version, or a paid tool that does substantially the same thing. Personal use, internal use, education, research and non-competing professional work are all fine.
+
+Two years after each release, that release automatically becomes available under the **MIT license**, so the whole thing becomes fully open source over time.
+
+The ScrapScout name and logo are not covered by the license and remain © Infxrnoz. A fork may not use them. For anything else, ask [@Infxrnoz](https://github.com/Infxrnoz).
 
 ---
 
